@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  updateDoc,
+} from 'firebase/firestore'
+import { db, firebaseConfigured } from './firebase'
+import {
   Archive,
   CalendarDays,
   CheckCircle2,
@@ -11,6 +21,7 @@ import {
   FileText,
   Inbox,
   LayoutDashboard,
+  LoaderCircle,
   Menu,
   Pencil,
   Plus,
@@ -20,8 +31,6 @@ import {
   X,
 } from 'lucide-react'
 
-const STORAGE_KEY = 'document-tracker-records-v1'
-
 const emptyForm = {
   DocummentCode: '',
   Subject: '',
@@ -30,36 +39,6 @@ const emptyForm = {
   ReceiverName: '',
   Releasedate: '',
 }
-
-const starterRecords = [
-  {
-    id: 'DOC-1',
-    DocummentCode: 'DOC-2026-001',
-    Subject: 'Regional memorandum for review',
-    DateReceive: '2026-09-10',
-    ReleaseOfficeName: 'Administrative Division',
-    ReceiverName: 'Maria Santos',
-    Releasedate: '2026-09-11',
-  },
-  {
-    id: 'DOC-2',
-    DocummentCode: 'DOC-2026-002',
-    Subject: 'Request for certification',
-    DateReceive: '2026-09-12',
-    ReleaseOfficeName: 'Human Resource Division',
-    ReceiverName: 'Juan Dela Cruz',
-    Releasedate: '',
-  },
-  {
-    id: 'DOC-3',
-    DocummentCode: 'DOC-2026-003',
-    Subject: 'Submission of monthly accomplishment report',
-    DateReceive: '2026-09-13',
-    ReleaseOfficeName: 'Records Section',
-    ReceiverName: 'Angela Reyes',
-    Releasedate: '2026-09-14',
-  },
-]
 
 function formatDate(value) {
   if (!value) return '—'
@@ -138,14 +117,10 @@ function StatusBadge({ released }) {
 }
 
 function App() {
-  const [records, setRecords] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      return saved ? JSON.parse(saved) : starterRecords
-    } catch {
-      return starterRecords
-    }
-  })
+  const [records, setRecords] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [backendError, setBackendError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -160,8 +135,39 @@ function App() {
   const pageSize = 6
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
-  }, [records])
+    if (!firebaseConfigured || !db) {
+      setBackendError(
+        'Firebase is not configured yet. Copy .env.example to .env and add your Firebase web app credentials.',
+      )
+      setIsLoading(false)
+      return undefined
+    }
+
+    const documentsRef = collection(db, 'documents')
+
+    const unsubscribe = onSnapshot(
+      documentsRef,
+      (snapshot) => {
+        const nextRecords = snapshot.docs.map((snapshotDoc) => ({
+          id: snapshotDoc.id,
+          ...snapshotDoc.data(),
+        }))
+
+        setRecords(nextRecords)
+        setBackendError('')
+        setIsLoading(false)
+      },
+      (error) => {
+        console.error('Firestore read error:', error)
+        setBackendError(
+          'Unable to load records from Firebase. Check your Firebase configuration and Firestore security rules.',
+        )
+        setIsLoading(false)
+      },
+    )
+
+    return unsubscribe
+  }, [])
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -240,7 +246,7 @@ function App() {
     setForm((current) => ({ ...current, [name]: value }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     setFormError('')
 
@@ -274,32 +280,51 @@ function App() {
       return
     }
 
-    if (editingId) {
-      setRecords((current) =>
-        current.map((record) =>
-          record.id === editingId ? { ...record, ...form } : record,
-        ),
-      )
-    } else {
-      setRecords((current) => [
-        {
-          id:
-            typeof crypto !== 'undefined' && crypto.randomUUID
-              ? crypto.randomUUID()
-              : `${Date.now()}-${Math.random()}`,
-          ...form,
-        },
-        ...current,
-      ])
+    if (!firebaseConfigured || !db) {
+      setFormError('Firebase is not configured. Add your Firebase credentials to the .env file.')
+      return
     }
 
-    closeForm()
+    setIsSaving(true)
+
+    try {
+      if (editingId) {
+        await updateDoc(doc(db, 'documents', editingId), {
+          ...form,
+          updatedAt: serverTimestamp(),
+        })
+      } else {
+        await addDoc(collection(db, 'documents'), {
+          ...form,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      }
+
+      closeForm()
+    } catch (error) {
+      console.error('Firestore save error:', error)
+      setFormError(
+        'Unable to save this record to Firebase. Check your connection and Firestore security rules.',
+      )
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  function confirmDelete() {
-    if (!deleteId) return
-    setRecords((current) => current.filter((record) => record.id !== deleteId))
-    setDeleteId(null)
+  async function confirmDelete() {
+    if (!deleteId || !firebaseConfigured || !db) return
+
+    try {
+      await deleteDoc(doc(db, 'documents', deleteId))
+      setDeleteId(null)
+    } catch (error) {
+      console.error('Firestore delete error:', error)
+      setBackendError(
+        'Unable to delete the record from Firebase. Check your connection and Firestore security rules.',
+      )
+      setDeleteId(null)
+    }
   }
 
   return (
@@ -337,7 +362,7 @@ function App() {
             </button>
             <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-400">
               <Archive size={18} />
-              Local Storage
+              Cloud Firestore
             </div>
           </nav>
 
@@ -345,9 +370,9 @@ function App() {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
               Storage
             </p>
-            <p className="mt-2 text-sm font-semibold text-slate-200">Browser persistence enabled</p>
+            <p className="mt-2 text-sm font-semibold text-slate-200">Firebase backend connected</p>
             <p className="mt-1 text-xs leading-5 text-slate-400">
-              Records remain available after refreshing this browser.
+              Records sync through Cloud Firestore and can be shared across connected devices.
             </p>
           </div>
         </aside>
@@ -394,6 +419,16 @@ function App() {
           </header>
 
           <div className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
+            {backendError && (
+              <div className="mb-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-700">
+                <CircleAlert size={19} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Firebase connection needs attention</p>
+                  <p className="mt-1 leading-6">{backendError}</p>
+                </div>
+              </div>
+            )}
+
             <section>
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-slate-950">Overview</h3>
@@ -600,7 +635,15 @@ function App() {
                 ))}
               </div>
 
-              {visibleRecords.length === 0 && (
+              {isLoading ? (
+                <div className="px-6 py-16 text-center">
+                  <LoaderCircle size={30} className="mx-auto animate-spin text-blue-600" />
+                  <h4 className="mt-4 font-bold text-slate-900">Loading Firebase records</h4>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Syncing documents from Cloud Firestore.
+                  </p>
+                </div>
+              ) : visibleRecords.length === 0 ? (
                 <div className="px-6 py-16 text-center">
                   <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
                     <Search size={24} />
@@ -610,7 +653,7 @@ function App() {
                     Try another search term or add a new document.
                   </p>
                 </div>
-              )}
+              ) : null}
 
               <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <p className="text-sm text-slate-500">
@@ -738,9 +781,15 @@ function App() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[0.98]"
+                  disabled={isSaving}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {editingId ? 'Save Changes' : 'Create Record'}
+                  {isSaving && <LoaderCircle size={16} className="animate-spin" />}
+                  {isSaving
+                    ? 'Saving...'
+                    : editingId
+                      ? 'Save Changes'
+                      : 'Create Record'}
                 </button>
               </div>
             </form>

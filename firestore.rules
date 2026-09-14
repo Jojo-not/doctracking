@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /documents/{documentId} {
+      // Development only. Secure this before production.
+      allow read, create, update, delete: if true;
+    }
+  }
+}

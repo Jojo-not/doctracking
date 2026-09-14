@@ -1,8 +1,8 @@
-# DocuTrack — React + Tailwind CRUD Website
+# DocuTrack — React + Tailwind + Firebase CRUD
 
-A modern document tracking CRUD application built with React, Vite, and Tailwind CSS.
+Modern document tracking CRUD application using React, Tailwind CSS, Vite, and Firebase Cloud Firestore.
 
-## Fields
+## Firestore fields
 
 - `DocummentCode`
 - `Subject`
@@ -11,39 +11,34 @@ A modern document tracking CRUD application built with React, Vite, and Tailwind
 - `ReceiverName`
 - `Releasedate`
 
-## Features
+Firebase automatically supplies the Firestore document ID. The app also stores `createdAt` and `updatedAt` timestamps.
 
-- Create document records
-- Read/view document records
-- Update existing document records
-- Delete records with confirmation
-- Search records
-- Filter by Released / Pending status
-- Dashboard statistics
-- Pagination
-- Responsive desktop and mobile design
-- LocalStorage persistence
-- Duplicate Document Code validation
-- Release Date validation
+## Firebase setup
 
-## Run locally
+1. Create/open a project in Firebase Console.
+2. Add a Web App.
+3. Go to **Build > Firestore Database** and create the database.
+4. Copy `.env.example` to `.env`.
+5. Paste your Firebase Web App config values into `.env`.
+
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open the local URL shown by Vite in your terminal.
+The application uses the Firestore collection `documents` and listens for real-time changes with `onSnapshot`.
 
-## Production build
+## Security
 
-```bash
-npm run build
-npm run preview
-```
-
-## Important
-
-This starter uses browser LocalStorage, so it does not require a backend or database.
-To make the data shared across multiple users/computers, connect the CRUD operations
-to an API and database such as Node.js/Express + MySQL/PostgreSQL.
+`firestore.rules` includes an open development rule so CRUD works immediately after you deploy the rule. Do not keep open rules in production. Add Firebase Authentication and restrict access to approved users before production deployment.
