@@ -1,44 +1,89 @@
-# DocuTrack — React + Tailwind + Firebase CRUD
+# DocuTrack — React + Tailwind + Firebase Auth + Firestore
 
-Modern document tracking CRUD application using React, Tailwind CSS, Vite, and Firebase Cloud Firestore.
+A modern document tracking CRUD application using React, Vite, Tailwind CSS, Firebase Authentication, and Cloud Firestore.
 
-## Firestore fields
+## Current fields
 
 - `DocummentCode`
 - `Subject`
 - `DateReceive`
-- `ReleaseOfficeName`
-- `ReceiverName`
+- `EndorsedTo`
+- `Name`
 - `Releasedate`
+- `Status` — automatic
 
-Firebase automatically supplies the Firestore document ID. The app also stores `createdAt` and `updatedAt` timestamps.
+### Automatic status rule
 
-## Firebase setup
+- If `EndorsedTo` equals `BHROD-HRDD` (case-insensitive), status is **Endorsed**.
+- Otherwise, status is **Release**.
 
-1. Create/open a project in Firebase Console.
-2. Add a Web App.
-3. Go to **Build > Firestore Database** and create the database.
-4. Copy `.env.example` to `.env`.
-5. Paste your Firebase Web App config values into `.env`.
+The app can still display older Firestore records that use `ReleaseOfficeName` and `ReceiverName`. When an old record is edited, those legacy fields are replaced by `EndorsedTo` and `Name`.
 
-```env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+## Access levels
+
+### Signed-in user
+
+- Create records
+- View/search records
+- Edit records
+- Delete records
+
+### Guest
+
+- View records only
+- Search records
+- Filter by status
+- Cannot create, edit, or delete
+
+## Firebase Authentication setup
+
+In Firebase Console:
+
+1. Open **Build → Authentication**.
+2. Click **Get started** if Authentication has not been initialized.
+3. Open **Sign-in method**.
+4. Enable **Email/Password**.
+
+The app has Login and Sign Up forms using Firebase Email/Password Authentication.
+
+## Firestore rules
+
+Publish the included `firestore.rules` in **Firestore Database → Rules**:
+
+```text
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /documents/{documentId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+  }
+}
 ```
 
-## Run
+This allows public guest reads while requiring login for CRUD writes.
+
+## Environment variables
+
+Copy `.env.example` to `.env` for local development and add your Firebase Web App configuration.
+
+On Vercel, add the same variables under:
+
+**Project → Settings → Environment Variables**
+
+Then redeploy after changing environment variables.
+
+## Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-The application uses the Firestore collection `documents` and listens for real-time changes with `onSnapshot`.
+## Production build
 
-## Security
-
-`firestore.rules` includes an open development rule so CRUD works immediately after you deploy the rule. Do not keep open rules in production. Add Firebase Authentication and restrict access to approved users before production deployment.
+```bash
+npm run build
+```

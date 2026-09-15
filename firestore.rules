@@ -3,8 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /documents/{documentId} {
-      // Development only. Secure this before production.
-      allow read, create, update, delete: if true;
+      // Guests may search/view. Only authenticated users may create/edit/delete.
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
     }
   }
 }
