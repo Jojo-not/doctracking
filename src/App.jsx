@@ -61,9 +61,11 @@ const emptyForm = {
 const ADMIN_EMAIL = 'jowen.diez@deped.gov.ph'
 
 function getStatus(endorsedTo) {
-  return String(endorsedTo || '').trim().toUpperCase() === 'BHROD-HRDD'
-    ? 'Endorsed'
-    : 'Release'
+  const value = String(endorsedTo || '').trim().toUpperCase()
+
+  if (!value || value === 'NA') return 'Pending'
+  if (value === 'BHROD-HRDD') return 'Endorsed'
+  return 'Release'
 }
 
 function formatDate(value) {
@@ -96,12 +98,11 @@ function authErrorMessage(error) {
   }
 }
 
-function Field({ label, name, value, onChange, type = 'text', placeholder, required = false }) {
+function Field({ label, name, value, onChange, type = 'text', placeholder}) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-semibold text-slate-700">
         {label}
-        {required && <span className="ml-1 text-rose-500">*</span>}
       </span>
       <input
         type={type}
@@ -109,7 +110,6 @@ function Field({ label, name, value, onChange, type = 'text', placeholder, requi
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        required={required}
         className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
       />
     </label>
@@ -141,16 +141,18 @@ function StatCard({ icon: Icon, label, value, helper, tone = 'blue' }) {
 }
 
 function StatusBadge({ status }) {
-  const endorsed = status === 'Endorsed'
+  const badgeClass =
+    status === 'Endorsed'
+      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+      : status === 'Pending'
+        ? 'bg-amber-50 text-amber-700 ring-amber-200'
+        : 'bg-blue-50 text-blue-700 ring-blue-200'
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
-        endorsed
-          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-          : 'bg-blue-50 text-blue-700 ring-blue-200'
-      }`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${badgeClass}`}
     >
-      <CheckCircle2 size={13} />
+      {status === 'Pending' ? <CircleAlert size={13} /> : <CheckCircle2 size={13} />}
       {status}
     </span>
   )
@@ -766,6 +768,7 @@ function App() {
       .filter((record) => {
         if (statusFilter === 'endorsed') return record.Status === 'Endorsed'
         if (statusFilter === 'release') return record.Status === 'Release'
+        if (statusFilter === 'pending') return record.Status === 'Pending'
         return true
       })
       .filter((record) => {
@@ -793,7 +796,8 @@ function App() {
   }, [search, statusFilter])
 
   const endorsedCount = records.filter((record) => record.Status === 'Endorsed').length
-  const releaseCount = records.length - endorsedCount
+  const releaseCount = records.filter((record) => record.Status === 'Release').length
+  const pendingDocumentCount = records.filter((record) => record.Status === 'Pending').length
   const receivedThisMonth = records.filter((record) => {
     if (!record.DateReceive) return false
     const date = new Date(`${record.DateReceive}T00:00:00`)
@@ -884,7 +888,7 @@ function App() {
       return
     }
 
-    const requiredFields = ['DocummentCode', 'Subject', 'DateReceive', 'EndorsedTo', 'Name']
+    const requiredFields = ['DocummentCode', 'Subject', 'DateReceive']
     if (requiredFields.some((key) => !String(form[key]).trim())) {
       setFormError('Please complete all required fields.')
       return
@@ -1201,11 +1205,12 @@ function App() {
                 <p className="mt-1 text-sm text-slate-500">Track incoming documents and endorsement/release status.</p>
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 <StatCard icon={FileText} label="Total Documents" value={records.length} helper="All records" tone="blue" />
                 <StatCard icon={CheckCircle2} label="Endorsed" value={endorsedCount} helper="Endorsed To = BHROD-HRDD" tone="emerald" />
-                <StatCard icon={FileCheck2} label="Release" value={releaseCount} helper="All other Endorsed To values" tone="amber" />
-                <StatCard icon={Inbox} label="Received This Month" value={receivedThisMonth} helper="Current month" tone="violet" />
+                <StatCard icon={FileCheck2} label="Release" value={releaseCount} helper="Other Endorsed To values" tone="amber" />
+                <StatCard icon={CircleAlert} label="Pending" value={pendingDocumentCount} helper="Endorsed To is blank or NA" tone="violet" />
+                <StatCard icon={Inbox} label="Received This Month" value={receivedThisMonth} helper="Current month" tone="blue" />
               </div>
             </section>
 
@@ -1235,6 +1240,7 @@ function App() {
                       <option value="all">All Status</option>
                       <option value="endorsed">Endorsed</option>
                       <option value="release">Release</option>
+                      <option value="pending">Pending</option>
                     </select>
                     <button
                       type="button"
@@ -1406,7 +1412,7 @@ function App() {
                 <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" required />
                 <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
                 <div className="sm:col-span-2"><Field label="Subject" name="Subject" value={form.Subject} onChange={handleChange} placeholder="Enter document subject" required /></div>
-                <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="e.g. BHROD-HRDD" required />
+                <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
                 <Field label="Name" name="Name" value={form.Name} onChange={handleChange} placeholder="Enter receiver/person name" required />
                 <Field label="Release Date" name="Releasedate" value={form.Releasedate} onChange={handleChange} type="date" />
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -1417,7 +1423,6 @@ function App() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
                   <div className="mt-2"><StatusBadge status={getStatus(form.EndorsedTo)} /></div>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">BHROD-HRDD = Endorsed. Any other value = Release.</p>
                 </div>
               </div>
 

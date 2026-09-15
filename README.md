@@ -101,3 +101,14 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## Document status rules
+
+Document status is calculated automatically from `EndorsedTo`:
+
+- Blank `EndorsedTo` -> `Pending`
+- `NA` (case-insensitive) -> `Pending`
+- `BHROD-HRDD` (case-insensitive) -> `Endorsed`
+- Any other non-empty value -> `Release`
+
+The document list, status filter, detail view, dashboard counters, and Excel export use this automatic status.
