@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -25,6 +26,8 @@ import {
   ChevronRight,
   CircleAlert,
   DoorOpen,
+  Download,
+  Eye,
   FileCheck2,
   FileText,
   Inbox,
@@ -340,6 +343,7 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
+  const [viewRecord, setViewRecord] = useState(null)
   const [formError, setFormError] = useState('')
   const [page, setPage] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -374,12 +378,14 @@ function App() {
           const data = snapshotDoc.data()
           const EndorsedTo = data.EndorsedTo ?? data.ReleaseOfficeName ?? ''
           const Name = data.Name ?? data.ReceiverName ?? ''
+          const EncodedBy = data.EncodedBy ?? data.createdBy ?? '—'
 
           return {
             id: snapshotDoc.id,
             ...data,
             EndorsedTo,
             Name,
+            EncodedBy,
             Status: getStatus(EndorsedTo),
           }
         })
@@ -417,6 +423,7 @@ function App() {
           record.Name,
           record.Releasedate,
           record.Status,
+          record.EncodedBy,
         ].some((value) => String(value || '').toLowerCase().includes(query))
       })
       .sort((a, b) => (b.DateReceive || '').localeCompare(a.DateReceive || ''))
@@ -438,6 +445,45 @@ function App() {
     const now = new Date()
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
   }).length
+
+  function downloadExcel() {
+    if (filteredRecords.length === 0) return
+
+    const rows = filteredRecords.map((record, index) => ({
+      'No.': index + 1,
+      'Document Code': record.DocummentCode || '',
+      Subject: record.Subject || '',
+      'Date Received': record.DateReceive || '',
+      'Endorsed To': record.EndorsedTo || '',
+      Name: record.Name || '',
+      'Release Date': record.Releasedate || '',
+      Status: record.Status || getStatus(record.EndorsedTo),
+      'Encoded By': record.EncodedBy || '',
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    worksheet['!cols'] = [
+      { wch: 6 },
+      { wch: 20 },
+      { wch: 42 },
+      { wch: 16 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 24 },
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Documents')
+
+    const today = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(workbook, `DocuTrack_Documents_${today}.xlsx`)
+  }
+
+  function openView(record) {
+    setViewRecord(record)
+  }
 
   function openCreate() {
     if (!canManage) return
@@ -511,17 +557,21 @@ function App() {
     }
 
     setIsSaving(true)
+    const encoderName = user.displayName?.trim() || user.email || user.uid
     const payload = {
       ...form,
       Status: getStatus(form.EndorsedTo),
       updatedAt: serverTimestamp(),
-      updatedBy: user.email || user.uid,
+      updatedBy: encoderName,
+      updatedByUid: user.uid,
     }
 
     try {
       if (editingId) {
         await updateDoc(doc(db, 'documents', editingId), {
           ...payload,
+          EncodedBy: encoderName,
+          EncodedByUid: user.uid,
           ReleaseOfficeName: deleteField(),
           ReceiverName: deleteField(),
         })
@@ -530,6 +580,8 @@ function App() {
           ...payload,
           createdAt: serverTimestamp(),
           createdBy: user.email || user.uid,
+          EncodedBy: encoderName,
+          EncodedByUid: user.uid,
         })
       }
       closeForm()
@@ -668,15 +720,7 @@ function App() {
                       <span className="hidden sm:inline">Logout</span>
                     </button>
                   </>
-                ) : (
-                  <button
-                    onClick={() => setGuestMode(false)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
-                  >
-                    <LogIn size={17} />
-                    Login / Sign Up
-                  </button>
-                )}
+                ) : null}
               </div>
             </div>
           </header>
@@ -730,7 +774,7 @@ function App() {
                       <input
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search code, subject, name..."
+                        placeholder="Search code, subject, name, encoder..."
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
                       />
                     </div>
@@ -743,6 +787,16 @@ function App() {
                       <option value="endorsed">Endorsed</option>
                       <option value="release">Release</option>
                     </select>
+                    <button
+                      type="button"
+                      onClick={downloadExcel}
+                      disabled={filteredRecords.length === 0}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="Download the current document list as Excel"
+                    >
+                      <Download size={17} />
+                      <span>Download Excel</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -755,9 +809,10 @@ function App() {
                       <th className="px-6 py-3.5">Date Received</th>
                       <th className="px-6 py-3.5">Endorsed To</th>
                       <th className="px-6 py-3.5">Name</th>
+                      <th className="px-6 py-3.5">Encoded By</th>
                       <th className="px-6 py-3.5">Release Date</th>
                       <th className="px-6 py-3.5">Status</th>
-                      {canManage && <th className="px-6 py-3.5 text-right">Actions</th>}
+                      <th className="px-6 py-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -770,16 +825,20 @@ function App() {
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateReceive)}</td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.EndorsedTo || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.Name || '—'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.EncodedBy || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.Releasedate)}</td>
                         <td className="px-6 py-4"><StatusBadge status={record.Status} /></td>
-                        {canManage && (
-                          <td className="px-6 py-4">
-                            <div className="flex justify-end gap-2">
-                              <button onClick={() => openEdit(record)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600" title="Edit"><Pencil size={16} /></button>
-                              <button onClick={() => setDeleteId(record.id)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" title="Delete"><Trash2 size={16} /></button>
-                            </div>
-                          </td>
-                        )}
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => openView(record)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600" title="View document"><Eye size={16} /></button>
+                            {canManage && (
+                              <>
+                                <button onClick={() => openEdit(record)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600" title="Edit"><Pencil size={16} /></button>
+                                <button onClick={() => setDeleteId(record.id)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" title="Delete"><Trash2 size={16} /></button>
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -801,13 +860,17 @@ function App() {
                       <div className="flex items-start gap-2"><Archive size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Endorsed To</p><p className="mt-0.5 text-slate-700">{record.EndorsedTo || '—'}</p></div></div>
                       <div className="flex items-start gap-2"><UserRound size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</p><p className="mt-0.5 text-slate-700">{record.Name || '—'}</p></div></div>
                       <div className="flex items-start gap-2"><FileCheck2 size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Release Date</p><p className="mt-0.5 text-slate-700">{formatDate(record.Releasedate)}</p></div></div>
+                      <div className="flex items-start gap-2"><Users size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p><p className="mt-0.5 text-slate-700">{record.EncodedBy || '—'}</p></div></div>
                     </div>
-                    {canManage && (
-                      <div className="mt-4 flex justify-end gap-2 border-t border-slate-100 pt-4">
-                        <button onClick={() => openEdit(record)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><Pencil size={15} />Edit</button>
-                        <button onClick={() => setDeleteId(record.id)} className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"><Trash2 size={15} />Delete</button>
-                      </div>
-                    )}
+                    <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+                      <button onClick={() => openView(record)} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"><Eye size={15} />View</button>
+                      {canManage && (
+                        <>
+                          <button onClick={() => openEdit(record)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><Pencil size={15} />Edit</button>
+                          <button onClick={() => setDeleteId(record.id)} className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"><Trash2 size={15} />Delete</button>
+                        </>
+                      )}
+                    </div>
                   </article>
                 ))}
               </div>
@@ -830,6 +893,53 @@ function App() {
         </main>
       </div>
 
+      {viewRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl shadow-slate-950/20">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur-xl">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-violet-600">Document details</p>
+                <h3 className="mt-1 text-xl font-bold text-slate-950">{viewRecord.DocummentCode || 'Document'}</h3>
+              </div>
+              <button onClick={() => setViewRecord(null)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close document view"><X size={20} /></button>
+            </div>
+
+            <div className="p-6">
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Subject</p>
+                  <p className="mt-2 text-lg font-semibold leading-7 text-slate-950">{viewRecord.Subject || '—'}</p>
+                </div>
+                <StatusBadge status={viewRecord.Status || getStatus(viewRecord.EndorsedTo)} />
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                {[
+                  ['Document Code', viewRecord.DocummentCode || '—'],
+                  ['Date Received', formatDate(viewRecord.DateReceive)],
+                  ['Endorsed To', viewRecord.EndorsedTo || '—'],
+                  ['Name', viewRecord.Name || '—'],
+                  ['Release Date', formatDate(viewRecord.Releasedate)],
+                  ['Encoded By', viewRecord.EncodedBy || viewRecord.createdBy || '—'],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+                    <p className="mt-2 break-words text-sm font-semibold text-slate-800">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
+                {canManage && (
+                  <button onClick={() => { const record = viewRecord; setViewRecord(null); openEdit(record) }} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Pencil size={16} />Edit Document</button>
+                )}
+                <button onClick={() => setViewRecord(null)} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isFormOpen && canManage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-2xl shadow-slate-950/20">
@@ -849,9 +959,14 @@ function App() {
                 <Field label="Name" name="Name" value={form.Name} onChange={handleChange} placeholder="Enter receiver/person name" required />
                 <Field label="Release Date" name="Releasedate" value={form.Releasedate} onChange={handleChange} type="date" />
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-800">{user.displayName || user.email || 'Signed-in user'}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Saved automatically from the account that creates or last updates the document.</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
                   <div className="mt-2"><StatusBadge status={getStatus(form.EndorsedTo)} /></div>
-                  
+                  <p className="mt-2 text-xs leading-5 text-slate-500">BHROD-HRDD = Endorsed. Any other value = Release.</p>
                 </div>
               </div>
 

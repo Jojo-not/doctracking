@@ -87,3 +87,35 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## Encoder audit and document view
+
+- New documents automatically save `EncodedBy` using the signed-in user's Firebase display name (with email fallback).
+- `EncodedByUid` stores the Firebase user UID for audit purposes.
+- Guests and authenticated users can open a read-only **View Document** modal.
+- The document list shows/searches the encoder name.
+- Older records without `EncodedBy` fall back to their existing `createdBy` value.
+
+## Excel export
+
+The document list includes a **Download Excel** button. It exports the records currently matching the search and status filter to an `.xlsx` workbook named like `DocuTrack_Documents_2026-09-15.xlsx`. The export is available to both signed-in users and guests because it does not modify Firebase data.
+
+Exported columns:
+
+- No.
+- Document Code
+- Subject
+- Date Received
+- Endorsed To
+- Name
+- Release Date
+- Status
+- Encoded By
+
+## Encoded By update behavior
+
+Whenever an authenticated user edits and saves a document, `EncodedBy` and `EncodedByUid` are replaced with that user’s current display name/email and UID.
+
+## Guest page update
+
+The public guest page no longer displays a Login / Sign Up button in the header. Guests can still search, view document details, and download the document list in Excel format.
