@@ -851,7 +851,7 @@ function App() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
                   <div className="mt-2"><StatusBadge status={getStatus(form.EndorsedTo)} /></div>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">BHROD-HRDD = Endorsed. Any other value = Release.</p>
+                  
                 </div>
               </div>
 
