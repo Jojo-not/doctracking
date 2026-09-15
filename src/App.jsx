@@ -15,6 +15,7 @@ import {
   doc,
   onSnapshot,
   serverTimestamp,
+  setDoc,
   updateDoc,
 } from 'firebase/firestore'
 import { auth, db, firebaseConfigured } from './firebase'
@@ -56,6 +57,8 @@ const emptyForm = {
   Name: '',
   Releasedate: '',
 }
+
+const ADMIN_EMAIL = 'jowen.diez@deped.gov.ph'
 
 function getStatus(endorsedTo) {
   return String(endorsedTo || '').trim().toUpperCase() === 'BHROD-HRDD'
@@ -165,7 +168,7 @@ function AuthScreen({ onGuest }) {
     event.preventDefault()
     setError('')
 
-    if (!firebaseConfigured || !auth) {
+    if (!firebaseConfigured || !auth || !db) {
       setError('Firebase is not configured. Check your Vercel environment variables.')
       return
     }
@@ -180,6 +183,18 @@ function AuthScreen({ onGuest }) {
       if (mode === 'signup') {
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
         await updateProfile(credential.user, { displayName: name.trim() })
+        await setDoc(
+          doc(db, 'users', credential.user.uid),
+          {
+            name: name.trim(),
+            email: credential.user.email || email.trim(),
+            approved: false,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        )
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password)
       }
@@ -202,13 +217,13 @@ function AuthScreen({ onGuest }) {
           <span className="block text-blue-400">Document Monitoring System</span>
         </h1>
         <p className="mt-6 max-w-lg text-lg leading-8 text-slate-300">
-          Authorized users can manage document records. Guests can open the public page to search and view records without making changes.
+          Registered users can manage document records after an administrator approves their account. Guests can search and view records without making changes.
         </p>
         <div className="mt-10 grid grid-cols-2 gap-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <Users className="text-blue-300" size={24} />
-            <p className="mt-4 font-semibold">User access</p>
-            <p className="mt-1 text-sm leading-6 text-slate-400">Create, edit and delete documents after signing in.</p>
+            <p className="mt-4 font-semibold">Approved user access</p>
+            <p className="mt-1 text-sm leading-6 text-slate-400">New accounts stay pending until an administrator approves them.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <Search className="text-blue-300" size={24} />
@@ -227,7 +242,7 @@ function AuthScreen({ onGuest }) {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">DocuTrack</p>
               <h2 className="text-xl font-bold text-slate-950">
-                {mode === 'login' ? 'Welcome back' : 'Create your account'}
+                {mode === 'login' ? 'Welcome back' : 'Request an account'}
               </h2>
             </div>
           </div>
@@ -258,6 +273,13 @@ function AuthScreen({ onGuest }) {
               Sign Up
             </button>
           </div>
+
+          {mode === 'signup' && (
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800">
+              <ShieldCheck size={18} className="mt-0.5 shrink-0" />
+              <span>Your registration will be submitted for administrator approval before document management access is enabled.</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             {mode === 'signup' && (
@@ -302,7 +324,7 @@ function AuthScreen({ onGuest }) {
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? <LoaderCircle size={18} className="animate-spin" /> : mode === 'login' ? <LogIn size={18} /> : <UserPlus size={18} />}
-              {busy ? 'Please wait...' : mode === 'login' ? 'Login' : 'Create Account'}
+              {busy ? 'Please wait...' : mode === 'login' ? 'Login' : 'Submit Registration'}
             </button>
           </form>
 
@@ -329,9 +351,216 @@ function AuthScreen({ onGuest }) {
   )
 }
 
+function PendingApprovalScreen({ profile, user, onLogout, onGuest }) {
+  const rejected = profile?.status === 'rejected'
+
+  return (
+    <div className="grid min-h-screen place-items-center bg-slate-950 px-4 py-10">
+      <div className="w-full max-w-lg rounded-3xl bg-white p-7 shadow-2xl shadow-black/30 sm:p-9">
+        <div className={`grid h-14 w-14 place-items-center rounded-2xl ${rejected ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
+          {rejected ? <CircleAlert size={26} /> : <ShieldCheck size={26} />}
+        </div>
+        <p className={`mt-6 text-xs font-semibold uppercase tracking-[0.16em] ${rejected ? 'text-rose-600' : 'text-amber-600'}`}>
+          {rejected ? 'Account not approved' : 'Pending approval'}
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+          {rejected ? 'Your account request was not approved.' : 'Your registration was submitted successfully.'}
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {rejected
+            ? 'Please contact the DocuTrack administrator if you believe your account should have access.'
+            : 'An administrator must approve your account before you can add, edit, or delete documents. This page updates automatically after approval.'}
+        </p>
+
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Account</p>
+          <p className="mt-2 font-semibold text-slate-900">{profile?.name || user?.displayName || 'User'}</p>
+          <p className="mt-1 text-sm text-slate-500">{profile?.email || user?.email || '—'}</p>
+          <p className="mt-3 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold capitalize text-slate-700 ring-1 ring-inset ring-slate-200">
+            {profile?.status || 'pending'}
+          </p>
+        </div>
+
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onGuest}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <DoorOpen size={18} />
+            Continue as Guest
+          </button>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+function AdminDashboard({
+  adminUser,
+  accounts,
+  totalDocuments,
+  approvalBusyId,
+  onUpdateApproval,
+}) {
+  const [accountSearch, setAccountSearch] = useState('')
+
+  const filteredAccounts = useMemo(() => {
+    const query = accountSearch.trim().toLowerCase()
+    if (!query) return accounts
+    return accounts.filter((account) =>
+      [account.name, account.email, account.status]
+        .some((value) => String(value || '').toLowerCase().includes(query)),
+    )
+  }, [accounts, accountSearch])
+
+  const pendingCount = accounts.filter(
+    (account) => account.status === 'pending' || (!account.approved && account.status !== 'rejected'),
+  ).length
+  const approvedCount = accounts.filter((account) => account.approved === true).length
+  const rejectedCount = accounts.filter((account) => account.status === 'rejected').length
+
+  return (
+    <div>
+      <section className="rounded-3xl bg-slate-950 p-6 text-white shadow-xl shadow-slate-950/10 sm:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">
+              <ShieldCheck size={15} />
+              Administrator
+            </div>
+            <h3 className="mt-4 text-3xl font-bold tracking-tight">Admin Control Center</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              Review account registrations, control user access, and monitor the DocuTrack system.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Admin account</p>
+            <p className="mt-2 font-semibold text-white">{adminUser?.displayName || 'DocuTrack Administrator'}</p>
+            <p className="mt-1 text-sm text-slate-300">{adminUser?.email || ADMIN_EMAIL}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={Users} label="Registered Users" value={accounts.length} helper="Non-admin accounts" tone="blue" />
+        <StatCard icon={ShieldCheck} label="Pending Approval" value={pendingCount} helper="Needs administrator review" tone="amber" />
+        <StatCard icon={CheckCircle2} label="Approved Users" value={approvedCount} helper="Can manage documents" tone="emerald" />
+        <StatCard icon={FileText} label="Documents" value={totalDocuments} helper="Records in Firestore" tone="violet" />
+      </section>
+
+      <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-slate-950">User Account Management</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Approve new accounts before they receive document Create, Edit, and Delete access.
+              </p>
+            </div>
+            <div className="relative w-full lg:w-80">
+              <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={accountSearch}
+                onChange={(event) => setAccountSearch(event.target.value)}
+                placeholder="Search name, email, status..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+        </div>
+
+        {filteredAccounts.length === 0 ? (
+          <div className="px-6 py-14 text-center">
+            <Users size={30} className="mx-auto text-slate-400" />
+            <h4 className="mt-3 font-bold text-slate-900">No user accounts found</h4>
+            <p className="mt-1 text-sm text-slate-500">
+              New registrations will appear here for administrator review.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filteredAccounts.map((account) => {
+              const approved = account.approved === true
+              const rejected = account.status === 'rejected'
+              const busy = approvalBusyId === account.id
+              return (
+                <div key={account.id} className="flex flex-col gap-4 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-950">{account.name || 'Unnamed user'}</p>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                        approved
+                          ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200'
+                          : rejected
+                            ? 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200'
+                            : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200'
+                      }`}>
+                        {approved ? 'approved' : rejected ? 'rejected' : 'pending'}
+                      </span>
+                    </div>
+                    <p className="mt-1 break-all text-sm text-slate-500">{account.email || 'No email available'}</p>
+                    {account.reviewedBy && (
+                      <p className="mt-1 text-xs text-slate-400">Last reviewed by {account.reviewedBy}</p>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {!approved && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onUpdateApproval(account, true)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {busy ? <LoaderCircle size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                        Approve
+                      </button>
+                    )}
+                    {(approved || !rejected) && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onUpdateApproval(account, false)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3.5 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <X size={16} />
+                        {approved ? 'Revoke Access' : 'Reject'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-500 sm:px-6">
+          {approvedCount} approved · {pendingCount} pending · {rejectedCount} rejected
+        </div>
+      </section>
+    </div>
+  )
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [authReady, setAuthReady] = useState(false)
+  const [accountReady, setAccountReady] = useState(false)
+  const [accountProfile, setAccountProfile] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [userAccounts, setUserAccounts] = useState([])
+  const [approvalBusyId, setApprovalBusyId] = useState('')
   const [guestMode, setGuestMode] = useState(false)
   const [records, setRecords] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -347,22 +576,148 @@ function App() {
   const [formError, setFormError] = useState('')
   const [page, setPage] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [activePage, setActivePage] = useState('documents')
 
   const pageSize = 6
-  const canManage = Boolean(user)
+  const canManage = Boolean(user && (isAdmin || accountProfile?.approved === true))
+  const managedAccounts = useMemo(
+    () => userAccounts.filter((account) => String(account.email || '').trim().toLowerCase() !== ADMIN_EMAIL),
+    [userAccounts],
+  )
+  const pendingApprovalCount = managedAccounts.filter((account) => account.status === 'pending' || (!account.approved && account.status !== 'rejected')).length
 
   useEffect(() => {
     if (!firebaseConfigured || !auth) {
       setAuthReady(true)
+      setAccountReady(true)
       return undefined
     }
 
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser)
+      setAccountProfile(null)
+      setIsAdmin(String(nextUser?.email || '').trim().toLowerCase() === ADMIN_EMAIL)
+      setAccountReady(!nextUser)
+      setActivePage('documents')
       if (nextUser) setGuestMode(false)
       setAuthReady(true)
     })
   }, [])
+
+  useEffect(() => {
+    if (!user || !db) {
+      setAccountProfile(null)
+      setIsAdmin(false)
+      setAccountReady(true)
+      return undefined
+    }
+
+    const adminEmailMatch = String(user.email || '').trim().toLowerCase() === ADMIN_EMAIL
+    setIsAdmin(adminEmailMatch)
+    setAccountReady(false)
+
+    const profileRef = doc(db, 'users', user.uid)
+    const unsubscribeProfile = onSnapshot(
+      profileRef,
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const profile = { id: snapshot.id, ...snapshot.data() }
+          setAccountProfile(
+            adminEmailMatch
+              ? { ...profile, approved: true, status: 'approved', role: 'admin' }
+              : profile,
+          )
+
+          if (
+            adminEmailMatch &&
+            (profile.approved !== true || profile.status !== 'approved' || profile.role !== 'admin')
+          ) {
+            try {
+              await setDoc(
+                profileRef,
+                {
+                  name: user.displayName || profile.name || user.email || 'Administrator',
+                  email: user.email || ADMIN_EMAIL,
+                  approved: true,
+                  status: 'approved',
+                  role: 'admin',
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true },
+              )
+            } catch (error) {
+              console.error('Admin profile normalization error:', error)
+            }
+          }
+        } else {
+          const initialProfile = adminEmailMatch
+            ? {
+                name: user.displayName || user.email || 'Administrator',
+                email: user.email || ADMIN_EMAIL,
+                approved: true,
+                status: 'approved',
+                role: 'admin',
+              }
+            : {
+                name: user.displayName || user.email || 'User',
+                email: user.email || '',
+                approved: false,
+                status: 'pending',
+                role: 'user',
+              }
+
+          setAccountProfile(initialProfile)
+          try {
+            await setDoc(
+              profileRef,
+              {
+                ...initialProfile,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true },
+            )
+          } catch (error) {
+            console.error('Account profile bootstrap error:', error)
+            setBackendError(`Account profile error: ${error.code || 'unknown'} - ${error.message}`)
+          }
+        }
+        setAccountReady(true)
+      },
+      (error) => {
+        console.error('User profile read error:', error)
+        setAccountProfile(null)
+        setAccountReady(true)
+        setBackendError(`Account profile error: ${error.code || 'unknown'} - ${error.message}`)
+      },
+    )
+
+    return unsubscribeProfile
+  }, [user])
+
+  useEffect(() => {
+    if (!isAdmin || !db) {
+      setUserAccounts([])
+      return undefined
+    }
+
+    return onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
+        const accounts = snapshot.docs
+          .map((accountDoc) => ({ id: accountDoc.id, ...accountDoc.data() }))
+          .sort((a, b) => {
+            const rank = (value) => (value === 'pending' ? 0 : value === 'approved' ? 1 : 2)
+            return rank(a.status) - rank(b.status) || String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''))
+          })
+        setUserAccounts(accounts)
+      },
+      (error) => {
+        console.error('User approvals read error:', error)
+        setBackendError(`User approval error: ${error.code || 'unknown'} - ${error.message}`)
+      },
+    )
+  }, [isAdmin])
 
   useEffect(() => {
     if (!firebaseConfigured || !db) {
@@ -610,7 +965,35 @@ function App() {
     if (auth) await signOut(auth)
   }
 
-  if (!authReady) {
+  async function continueAsGuestFromPending() {
+    if (auth) await signOut(auth)
+    setGuestMode(true)
+  }
+
+  async function updateAccountApproval(account, approved) {
+    if (!isAdmin || !db || !user) return
+    if (String(account?.email || '').trim().toLowerCase() === ADMIN_EMAIL) return
+
+    setApprovalBusyId(account.id)
+    try {
+      const adminName = user.displayName || user.email || user.uid
+      await updateDoc(doc(db, 'users', account.id), {
+        approved,
+        status: approved ? 'approved' : 'rejected',
+        updatedAt: serverTimestamp(),
+        reviewedAt: serverTimestamp(),
+        reviewedBy: adminName,
+        reviewedByUid: user.uid,
+      })
+    } catch (error) {
+      console.error('Account approval update error:', error)
+      setBackendError(`Unable to update account approval: ${error.message}`)
+    } finally {
+      setApprovalBusyId('')
+    }
+  }
+
+  if (!authReady || (user && !accountReady)) {
     return (
       <div className="grid min-h-screen place-items-center bg-slate-950 text-white">
         <div className="text-center">
@@ -623,6 +1006,17 @@ function App() {
 
   if (!user && !guestMode) {
     return <AuthScreen onGuest={() => setGuestMode(true)} />
+  }
+
+  if (user && !canManage) {
+    return (
+      <PendingApprovalScreen
+        profile={accountProfile}
+        user={user}
+        onLogout={handleLogout}
+        onGuest={continueAsGuestFromPending}
+      />
+    )
   }
 
   return (
@@ -653,11 +1047,41 @@ function App() {
           </div>
 
           <nav className="mt-10 space-y-2">
-            <div className="flex w-full items-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold ring-1 ring-inset ring-white/10">
+            <button
+              type="button"
+              onClick={() => {
+                setActivePage('documents')
+                setSidebarOpen(false)
+              }}
+              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
+                activePage === 'documents'
+                  ? 'bg-white/10 text-white ring-1 ring-inset ring-white/10'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
               <LayoutDashboard size={18} />
               {canManage ? 'Document Records' : 'Guest Records'}
-            </div>
-            <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-400">
+            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActivePage('admin')
+                  setSidebarOpen(false)
+                }}
+                className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
+                  activePage === 'admin'
+                    ? 'bg-white/10 text-white ring-1 ring-inset ring-white/10'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span className="flex items-center gap-3"><ShieldCheck size={18} />Admin Dashboard</span>
+                {pendingApprovalCount > 0 && (
+                  <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-slate-950">{pendingApprovalCount}</span>
+                )}
+              </button>
+            )}
+            <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-500">
               <Archive size={18} />
               Cloud Firestore
             </div>
@@ -666,10 +1090,10 @@ function App() {
           <div className="absolute bottom-6 left-5 right-5 rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Access</p>
             <p className="mt-2 text-sm font-semibold text-slate-200">
-              {canManage ? user.displayName || user.email : 'Guest / View only'}
+              {isAdmin ? `${user.displayName || user.email} (Admin)` : canManage ? user.displayName || user.email : 'Guest / View only'}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-400">
-              {canManage ? 'Authenticated CRUD access.' : 'Search and view records only.'}
+              {isAdmin ? 'Administrator access to documents and user management.' : canManage ? 'Approved CRUD access.' : 'Search and view records only.'}
             </p>
           </div>
         </aside>
@@ -695,23 +1119,38 @@ function App() {
                 </button>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-blue-600">
-                    {canManage ? 'Dashboard' : 'Public Guest Page'}
+                    {isAdmin && activePage === 'admin' ? 'Administration' : canManage ? 'Dashboard' : 'Public Guest Page'}
                   </p>
-                  <h2 className="truncate text-xl font-bold tracking-tight text-slate-950">Document Monitoring</h2>
+                  <h2 className="truncate text-xl font-bold tracking-tight text-slate-950">{isAdmin && activePage === 'admin' ? 'Admin Dashboard' : 'Document Monitoring'}</h2>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 {canManage ? (
                   <>
-                    <button
-                      onClick={openCreate}
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-                    >
-                      <Plus size={18} />
-                      <span className="hidden sm:inline">Add Document</span>
-                      <span className="sm:hidden">Add</span>
-                    </button>
+                    {isAdmin && activePage === 'documents' && (
+                      <button
+                        type="button"
+                        onClick={() => setActivePage('admin')}
+                        className="relative inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                      >
+                        <ShieldCheck size={17} />
+                        <span className="hidden md:inline">Admin Page</span>
+                        {pendingApprovalCount > 0 && (
+                          <span className="grid min-w-5 place-items-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-bold text-white">{pendingApprovalCount}</span>
+                        )}
+                      </button>
+                    )}
+                    {activePage === 'documents' && (
+                      <button
+                        onClick={openCreate}
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                      >
+                        <Plus size={18} />
+                        <span className="hidden sm:inline">Add Document</span>
+                        <span className="sm:hidden">Add</span>
+                      </button>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -726,7 +1165,7 @@ function App() {
           </header>
 
           <div className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
-            {!canManage && (
+            {activePage === 'documents' && !canManage && (
               <div className="mb-6 flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3.5 text-sm text-blue-800">
                 <ShieldCheck size={19} className="mt-0.5 shrink-0" />
                 <div>
@@ -746,7 +1185,17 @@ function App() {
               </div>
             )}
 
-            <section>
+            {activePage === 'admin' && isAdmin ? (
+              <AdminDashboard
+                adminUser={user}
+                accounts={managedAccounts}
+                totalDocuments={records.length}
+                approvalBusyId={approvalBusyId}
+                onUpdateApproval={updateAccountApproval}
+              />
+            ) : (
+              <>
+                <section>
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-slate-950">Overview</h3>
                 <p className="mt-1 text-sm text-slate-500">Track incoming documents and endorsement/release status.</p>
@@ -889,6 +1338,8 @@ function App() {
                 </div>
               </div>
             </section>
+              </>
+            )}
           </div>
         </main>
       </div>

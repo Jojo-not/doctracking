@@ -2,10 +2,47 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == 'jowen.diez@deped.gov.ph';
+    }
+
+    function isApprovedUser() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+    }
+
+    // Guests may read documents. Approved users and the administrator may manage them.
     match /documents/{documentId} {
-      // Guests may search/view. Only authenticated users may create/edit/delete.
       allow read: if true;
-      allow create, update, delete: if request.auth != null;
+      allow create, update, delete: if isAdmin() || isApprovedUser();
+    }
+
+    // New users create a pending profile. The configured administrator can list and
+    // manage all profiles from the Admin Dashboard.
+    match /users/{userId} {
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.approved == false
+        && request.resource.data.status == 'pending'
+        && request.resource.data.email == request.auth.token.email
+      );
+
+      allow get: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow list: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // Legacy admin documents are no longer required. Admin access is tied to the
+    // authenticated Firebase email above.
+    match /admins/{adminId} {
+      allow read, write: if false;
     }
   }
 }

@@ -1,79 +1,93 @@
-# DocuTrack — React + Tailwind + Firebase Auth + Firestore
+# DocuTrack — React + Tailwind + Firebase
 
-A modern document tracking CRUD application using React, Vite, Tailwind CSS, Firebase Authentication, and Cloud Firestore.
+DocuTrack is a document monitoring CRUD application using React, Tailwind CSS, Firebase Authentication, Cloud Firestore, and Excel export.
 
-## Current fields
+## Administrator
 
-- `DocummentCode`
-- `Subject`
-- `DateReceive`
-- `EndorsedTo`
-- `Name`
-- `Releasedate`
-- `Status` — automatic
-
-### Automatic status rule
-
-- If `EndorsedTo` equals `BHROD-HRDD` (case-insensitive), status is **Endorsed**.
-- Otherwise, status is **Release**.
-
-The app can still display older Firestore records that use `ReleaseOfficeName` and `ReceiverName`. When an old record is edited, those legacy fields are replaced by `EndorsedTo` and `Name`.
-
-## Access levels
-
-### Signed-in user
-
-- Create records
-- View/search records
-- Edit records
-- Delete records
-
-### Guest
-
-- View records only
-- Search records
-- Filter by status
-- Cannot create, edit, or delete
-
-## Firebase Authentication setup
-
-In Firebase Console:
-
-1. Open **Build → Authentication**.
-2. Click **Get started** if Authentication has not been initialized.
-3. Open **Sign-in method**.
-4. Enable **Email/Password**.
-
-The app has Login and Sign Up forms using Firebase Email/Password Authentication.
-
-## Firestore rules
-
-Publish the included `firestore.rules` in **Firestore Database → Rules**:
+The dedicated administrator account for this build is:
 
 ```text
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /documents/{documentId} {
-      allow read: if true;
-      allow create, update, delete: if request.auth != null;
-    }
-  }
-}
+jowen.diez@deped.gov.ph
 ```
 
-This allows public guest reads while requiring login for CRUD writes.
+When that Firebase Authentication account logs in, DocuTrack automatically recognizes it as the administrator. You no longer need to manually create an `admins/{uid}` Firestore document.
+
+## Admin Dashboard
+
+The administrator gets a dedicated **Admin Dashboard** page with:
+
+- Registered user count
+- Pending approval count
+- Approved account count
+- Total document count
+- User account search
+- Approve pending registrations
+- Reject registrations
+- Revoke approved-user access
+- Administrator identity display
+
+The Admin Dashboard is visible only to the configured admin account.
+
+## Account approval flow
+
+1. A user signs up with name, email, and password.
+2. Firebase Authentication creates the account.
+3. Firestore creates `/users/{uid}` with `approved: false` and `status: "pending"`.
+4. The user sees the Pending Approval screen.
+5. The administrator logs in and opens **Admin Dashboard**.
+6. The administrator approves or rejects the account.
+7. Approved users receive document Create/Edit/Delete access.
+
+Guests can still search, view, and export documents without modifying them.
+
+## Important: publish the included Firestore rules
+
+Open:
+
+**Firebase Console → Firestore Database → Rules**
+
+Replace the rules with the included `firestore.rules` file and click **Publish**.
+
+These rules recognize the administrator using the authenticated Firebase email:
+
+```text
+jowen.diez@deped.gov.ph
+```
+
+This means the admin restriction is enforced by Firestore and not only by the React interface.
+
+## Firebase Authentication
+
+Make sure **Email/Password** authentication is enabled:
+
+**Firebase Console → Authentication → Sign-in method → Email/Password → Enable**
+
+Also make sure `jowen.diez@deped.gov.ph` exists in **Authentication → Users**. If it does not exist yet, create/sign up that account first.
 
 ## Environment variables
 
-Copy `.env.example` to `.env` for local development and add your Firebase Web App configuration.
+Create `.env` from `.env.example`:
 
-On Vercel, add the same variables under:
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=docutra-c8890.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=docutra-c8890
+VITE_FIREBASE_STORAGE_BUCKET=docutra-c8890.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=1082727175874
+VITE_FIREBASE_APP_ID=1:1082727175874:web:c191fa4334457b208ecd5b
+```
 
-**Project → Settings → Environment Variables**
+For Vercel, enter these under **Project → Settings → Environment Variables**, then redeploy.
 
-Then redeploy after changing environment variables.
+## Document features
+
+- Create, view, edit, and delete documents for approved users
+- Guest view/search access
+- Excel `.xlsx` export
+- Automatic status:
+  - `EndorsedTo = BHROD-HRDD` → **Endorsed**
+  - Any other value → **Release**
+- `Encoded By` automatically stores the user who created or last updated the record
 
 ## Run locally
 
@@ -87,35 +101,3 @@ npm run dev
 ```bash
 npm run build
 ```
-
-## Encoder audit and document view
-
-- New documents automatically save `EncodedBy` using the signed-in user's Firebase display name (with email fallback).
-- `EncodedByUid` stores the Firebase user UID for audit purposes.
-- Guests and authenticated users can open a read-only **View Document** modal.
-- The document list shows/searches the encoder name.
-- Older records without `EncodedBy` fall back to their existing `createdBy` value.
-
-## Excel export
-
-The document list includes a **Download Excel** button. It exports the records currently matching the search and status filter to an `.xlsx` workbook named like `DocuTrack_Documents_2026-09-15.xlsx`. The export is available to both signed-in users and guests because it does not modify Firebase data.
-
-Exported columns:
-
-- No.
-- Document Code
-- Subject
-- Date Received
-- Endorsed To
-- Name
-- Release Date
-- Status
-- Encoded By
-
-## Encoded By update behavior
-
-Whenever an authenticated user edits and saves a document, `EncodedBy` and `EncodedByUid` are replaced with that user’s current display name/email and UID.
-
-## Guest page update
-
-The public guest page no longer displays a Login / Sign Up button in the header. Guests can still search, view document details, and download the document list in Excel format.
