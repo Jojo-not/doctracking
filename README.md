@@ -112,3 +112,9 @@ Document status is calculated automatically from `EndorsedTo`:
 - Any other non-empty value -> `Release`
 
 The document list, status filter, detail view, dashboard counters, and Excel export use this automatic status.
+
+## Date filtering and Excel reports
+
+The document list supports a custom date range. Choose **Date Received** or **Release Date**, then set optional **From Date** and **To Date** values. Search and status filters can be combined with the date filter.
+
+**Download Excel** exports the currently filtered records and adds report information at the top of the workbook, including the selected date field, date range, status filter, search text, and total records. The generated filename also includes the selected date range.

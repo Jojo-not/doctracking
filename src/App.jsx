@@ -98,11 +98,12 @@ function authErrorMessage(error) {
   }
 }
 
-function Field({ label, name, value, onChange, type = 'text', placeholder}) {
+function Field({ label, name, value, onChange, type = 'text', placeholder, required = false }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-semibold text-slate-700">
         {label}
+        {required && <span className="ml-1 text-rose-500">*</span>}
       </span>
       <input
         type={type}
@@ -110,6 +111,7 @@ function Field({ label, name, value, onChange, type = 'text', placeholder}) {
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        required={required}
         className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
       />
     </label>
@@ -570,6 +572,9 @@ function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [dateField, setDateField] = useState('DateReceive')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -772,6 +777,15 @@ function App() {
         return true
       })
       .filter((record) => {
+        const selectedDate = dateField === 'Releasedate' ? record.Releasedate : record.DateReceive
+
+        if (!dateFrom && !dateTo) return true
+        if (!selectedDate) return false
+        if (dateFrom && selectedDate < dateFrom) return false
+        if (dateTo && selectedDate > dateTo) return false
+        return true
+      })
+      .filter((record) => {
         if (!query) return true
         return [
           record.DocummentCode,
@@ -785,7 +799,7 @@ function App() {
         ].some((value) => String(value || '').toLowerCase().includes(query))
       })
       .sort((a, b) => (b.DateReceive || '').localeCompare(a.DateReceive || ''))
-  }, [records, search, statusFilter])
+  }, [records, search, statusFilter, dateField, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize))
   const currentPage = Math.min(page, totalPages)
@@ -793,7 +807,7 @@ function App() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, statusFilter])
+  }, [search, statusFilter, dateField, dateFrom, dateTo])
 
   const endorsedCount = records.filter((record) => record.Status === 'Endorsed').length
   const releaseCount = records.filter((record) => record.Status === 'Release').length
@@ -808,19 +822,49 @@ function App() {
   function downloadExcel() {
     if (filteredRecords.length === 0) return
 
-    const rows = filteredRecords.map((record, index) => ({
-      'No.': index + 1,
-      'Document Code': record.DocummentCode || '',
-      Subject: record.Subject || '',
-      'Date Received': record.DateReceive || '',
-      'Endorsed To': record.EndorsedTo || '',
-      Name: record.Name || '',
-      'Release Date': record.Releasedate || '',
-      Status: record.Status || getStatus(record.EndorsedTo),
-      'Encoded By': record.EncodedBy || '',
-    }))
+    const dateFieldLabel = dateField === 'Releasedate' ? 'Release Date' : 'Date Received'
+    const statusLabel =
+      statusFilter === 'all'
+        ? 'All Statuses'
+        : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)
 
-    const worksheet = XLSX.utils.json_to_sheet(rows)
+    const reportRows = filteredRecords.map((record, index) => [
+      index + 1,
+      record.DocummentCode || '',
+      record.Subject || '',
+      record.DateReceive || '',
+      record.EndorsedTo || '',
+      record.Name || '',
+      record.Releasedate || '',
+      record.Status || getStatus(record.EndorsedTo),
+      record.EncodedBy || '',
+    ])
+
+    const worksheetData = [
+      ['DOCUTRACK DOCUMENT REPORT'],
+      ['Date Field', dateFieldLabel],
+      ['From Date', dateFrom || 'All'],
+      ['To Date', dateTo || 'All'],
+      ['Status', statusLabel],
+      ['Search', search.trim() || 'All'],
+      ['Total Records', filteredRecords.length],
+      [],
+      [
+        'No.',
+        'Document Code',
+        'Subject',
+        'Date Received',
+        'Endorsed To',
+        'Name',
+        'Release Date',
+        'Status',
+        'Encoded By',
+      ],
+      ...reportRows,
+    ]
+
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+    worksheet['!merges'] = [XLSX.utils.decode_range('A1:I1')]
     worksheet['!cols'] = [
       { wch: 6 },
       { wch: 20 },
@@ -833,11 +877,26 @@ function App() {
       { wch: 24 },
     ]
 
+    if (reportRows.length > 0) {
+      worksheet['!autofilter'] = { ref: `A9:I${9 + reportRows.length}` }
+    }
+
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Documents')
 
     const today = new Date().toISOString().slice(0, 10)
-    XLSX.writeFile(workbook, `DocuTrack_Documents_${today}.xlsx`)
+    const rangeLabel =
+      dateFrom || dateTo
+        ? `${dateFrom || 'Start'}_to_${dateTo || 'End'}`
+        : `All_Dates_${today}`
+    const fieldLabel = dateField === 'Releasedate' ? 'ReleaseDate' : 'DateReceived'
+
+    XLSX.writeFile(workbook, `DocuTrack_${fieldLabel}_${rangeLabel}.xlsx`)
+  }
+
+  function clearDateFilter() {
+    setDateFrom('')
+    setDateTo('')
   }
 
   function openView(record) {
@@ -888,7 +947,7 @@ function App() {
       return
     }
 
-    const requiredFields = ['DocummentCode', 'Subject', 'DateReceive']
+    const requiredFields = ['DocummentCode', 'Subject', 'DateReceive', 'EndorsedTo', 'Name']
     if (requiredFields.some((key) => !String(form[key]).trim())) {
       setFormError('Please complete all required fields.')
       return
@@ -1247,12 +1306,67 @@ function App() {
                       onClick={downloadExcel}
                       disabled={filteredRecords.length === 0}
                       className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="Download the current document list as Excel"
+                      title="Download the currently filtered document list as Excel"
                     >
                       <Download size={17} />
                       <span>Download Excel</span>
                     </button>
                   </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 lg:flex-row lg:items-end">
+                  <div className="flex items-center gap-2 pb-0.5 text-sm font-semibold text-slate-700 lg:mr-2">
+                    <CalendarDays size={18} className="text-blue-600" />
+                    Date Filter
+                  </div>
+
+                  <label className="block min-w-0 lg:w-48">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Filter By</span>
+                    <select
+                      value={dateField}
+                      onChange={(event) => setDateField(event.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                    >
+                      <option value="DateReceive">Date Received</option>
+                      <option value="Releasedate">Release Date</option>
+                    </select>
+                  </label>
+
+                  <label className="block min-w-0 lg:w-44">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">From Date</span>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      max={dateTo || undefined}
+                      onChange={(event) => setDateFrom(event.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                    />
+                  </label>
+
+                  <label className="block min-w-0 lg:w-44">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">To Date</span>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      min={dateFrom || undefined}
+                      onChange={(event) => setDateTo(event.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={clearDateFilter}
+                    disabled={!dateFrom && !dateTo}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <X size={16} />
+                    Clear Dates
+                  </button>
+
+                  <p className="text-xs leading-5 text-slate-500 lg:ml-auto lg:max-w-xs lg:text-right">
+                    Excel export uses the current search, status, and date filters.
+                  </p>
                 </div>
               </div>
 
@@ -1423,6 +1537,7 @@ function App() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
                   <div className="mt-2"><StatusBadge status={getStatus(form.EndorsedTo)} /></div>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">Blank or NA = Pending. BHROD-HRDD = Endorsed. Any other value = Release.</p>
                 </div>
               </div>
 
