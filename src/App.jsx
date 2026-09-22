@@ -53,15 +53,15 @@ const emptyForm = {
   DocummentCode: '',
   Subject: '',
   DateReceive: '',
+  Office: '',
   EndorsedTo: '',
-  Name: '',
-  Releasedate: '',
+  DateEndorsed: '',
 }
 
 const ADMIN_EMAIL = 'jowen.diez@deped.gov.ph'
 
-function getStatus(endorsedTo) {
-  const value = String(endorsedTo || '').trim().toUpperCase()
+function getStatus(Office) {
+  const value = String(Office || '').trim().toUpperCase()
 
   if (!value || value === 'NA') return 'Pending'
   if (value === 'BHROD-HRDD') return 'Endorsed'
@@ -733,17 +733,17 @@ function App() {
       (snapshot) => {
         const nextRecords = snapshot.docs.map((snapshotDoc) => {
           const data = snapshotDoc.data()
-          const EndorsedTo = data.EndorsedTo ?? data.ReleaseOfficeName ?? ''
-          const Name = data.Name ?? data.ReceiverName ?? ''
+          const Office = data.Office ?? data.ReleaseOfficeName ?? ''
+          const EndorsedTo = data.EndorsedTo ?? data.ReceiverName ?? ''
           const EncodedBy = data.EncodedBy ?? data.createdBy ?? '—'
 
           return {
             id: snapshotDoc.id,
             ...data,
+            Office,
             EndorsedTo,
-            Name,
             EncodedBy,
-            Status: getStatus(EndorsedTo),
+            Status: getStatus(Office),
           }
         })
 
@@ -787,8 +787,8 @@ function App() {
           record.Subject,
           record.DateReceive,
           record.EndorsedTo,
-          record.Name,
-          record.Releasedate,
+          record.Office,
+          record.DateEndorsed,
           record.Status,
           record.EncodedBy,
         ].some((value) => String(value || '').toLowerCase().includes(query))
@@ -829,9 +829,9 @@ function App() {
       record.Subject || '',
       record.DateReceive || '',
       record.EndorsedTo || '',
-      record.Name || '',
-      record.Releasedate || '',
-      record.Status || getStatus(record.EndorsedTo),
+      record.Office || '',
+      record.DateEndorsed || '',
+      record.Status || getStatus(record.Office),
       record.EncodedBy || '',
     ])
 
@@ -850,8 +850,8 @@ function App() {
         'Subject',
         'Date Received',
         'Endorsed To',
-        'Name',
-        'Release Date',
+        'Office',
+        'Date Endorsed',
         'Status',
         'Encoded By',
       ],
@@ -884,7 +884,7 @@ function App() {
       dateFrom || dateTo
         ? `${dateFrom || 'Start'}_to_${dateTo || 'End'}`
         : `All_Dates_${today}`
-    const fieldLabel = dateField === 'Releasedate' ? 'ReleaseDate' : 'DateReceived'
+    const fieldLabel = dateField === 'Releasedate' ? 'ReleaseDate' : 'DateReceive'
 
     XLSX.writeFile(workbook, `DocuTrack_${fieldLabel}_${rangeLabel}.xlsx`)
   }
@@ -914,8 +914,8 @@ function App() {
       Subject: record.Subject || '',
       DateReceive: record.DateReceive || '',
       EndorsedTo: record.EndorsedTo || '',
-      Name: record.Name || '',
-      Releasedate: record.Releasedate || '',
+      Office: record.Office || '',
+      DateEndorsed: record.DateEndorsed || '',
     })
     setFormError('')
     setIsFormOpen(true)
@@ -959,8 +959,8 @@ function App() {
       return
     }
 
-    if (form.Releasedate && form.Releasedate < form.DateReceive) {
-      setFormError('Release Date cannot be earlier than Date Received.')
+    if (form.DateEndorsed && form.DateEndorsed < form.DateReceive) {
+      setFormError('Date Endorsed cannot be earlier than Date Received.')
       return
     }
 
@@ -973,7 +973,7 @@ function App() {
     const encoderName = user.displayName?.trim() || user.email || user.uid
     const payload = {
       ...form,
-      Status: getStatus(form.EndorsedTo),
+      Status: getStatus(form.Office),
       updatedAt: serverTimestamp(),
       updatedBy: encoderName,
       updatedByUid: user.uid,
@@ -1311,7 +1311,7 @@ function App() {
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                     >
                       <option value="DateReceive">Date Received</option>
-                      <option value="Releasedate">Release Date</option>
+                      <option value="DateEndorsed">Date Endorsed</option>
                     </select>
                   </label>
 
@@ -1359,10 +1359,10 @@ function App() {
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <th className="px-6 py-3.5">Document</th>
                       <th className="px-6 py-3.5">Date Received</th>
-                      <th className="px-6 py-3.5">Endorsed To</th>
-                      <th className="px-6 py-3.5">Name</th>
                       <th className="px-6 py-3.5">Encoded By</th>
-                      <th className="px-6 py-3.5">Release Date</th>
+                      <th className="px-6 py-3.5">Endorsed To</th>
+                      <th className="px-6 py-3.5">Office</th>
+                      <th className="px-6 py-3.5">Date Endorsed</th>
                       <th className="px-6 py-3.5">Status</th>
                       <th className="px-6 py-3.5 text-right">Actions</th>
                     </tr>
@@ -1375,10 +1375,10 @@ function App() {
                           <div className="mt-1 line-clamp-2 text-sm text-slate-500">{record.Subject}</div>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateReceive)}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.EndorsedTo || '—'}</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.Name || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.EncodedBy || '—'}</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.Releasedate)}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.Office || '—'}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.EndorsedTo || '—'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateEndorsed)}</td>
                         <td className="px-6 py-4"><StatusBadge status={record.Status} /></td>
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
@@ -1409,9 +1409,9 @@ function App() {
                     </div>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <div className="flex items-start gap-2"><CalendarDays size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Received</p><p className="mt-0.5 text-slate-700">{formatDate(record.DateReceive)}</p></div></div>
-                      <div className="flex items-start gap-2"><Archive size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Endorsed To</p><p className="mt-0.5 text-slate-700">{record.EndorsedTo || '—'}</p></div></div>
-                      <div className="flex items-start gap-2"><UserRound size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</p><p className="mt-0.5 text-slate-700">{record.Name || '—'}</p></div></div>
-                      <div className="flex items-start gap-2"><FileCheck2 size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Release Date</p><p className="mt-0.5 text-slate-700">{formatDate(record.Releasedate)}</p></div></div>
+                      <div className="flex items-start gap-2"><Archive size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Office</p><p className="mt-0.5 text-slate-700">{record.Office || '—'}</p></div></div>
+                      <div className="flex items-start gap-2"><UserRound size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Endorsed To</p><p className="mt-0.5 text-slate-700">{record.EndorsedTo || '—'}</p></div></div>
+                      <div className="flex items-start gap-2"><FileCheck2 size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Date Endorsed</p><p className="mt-0.5 text-slate-700">{formatDate(record.DateEndorsed)}</p></div></div>
                       <div className="flex items-start gap-2"><Users size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p><p className="mt-0.5 text-slate-700">{record.EncodedBy || '—'}</p></div></div>
                     </div>
                     <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
@@ -1464,16 +1464,16 @@ function App() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Subject</p>
                   <p className="mt-2 text-lg font-semibold leading-7 text-slate-950">{viewRecord.Subject || '—'}</p>
                 </div>
-                <StatusBadge status={viewRecord.Status || getStatus(viewRecord.EndorsedTo)} />
+                <StatusBadge status={viewRecord.Status || getStatus(viewRecord.Office)} />
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {[
                   ['Document Code', viewRecord.DocummentCode || '—'],
                   ['Date Received', formatDate(viewRecord.DateReceive)],
+                  ['Office', viewRecord.Office || '—'],
                   ['Endorsed To', viewRecord.EndorsedTo || '—'],
-                  ['Name', viewRecord.Name || '—'],
-                  ['Release Date', formatDate(viewRecord.Releasedate)],
+                  ['Date Endorsed', formatDate(viewRecord.DateEndorsed)],
                   ['Encoded By', viewRecord.EncodedBy || viewRecord.createdBy || '—'],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-2xl border border-slate-200 p-4">
@@ -1509,16 +1509,16 @@ function App() {
                 <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" required />
                 <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
                 <div className="sm:col-span-2"><Field label="Subject" name="Subject" value={form.Subject} onChange={handleChange} placeholder="Enter document subject" required /></div>
-                <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
-                <Field label="Name" name="Name" value={form.Name} onChange={handleChange} placeholder="Enter receiver/person name" />
-                <Field label="Release Date" name="Releasedate" value={form.Releasedate} onChange={handleChange} type="date" />
+                <Field label="Office" name="Office" value={form.Office} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
+                <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="Enter receiver/person name" />
+                <Field label="Date Endorsed" name="DateEndorsed" value={form.DateEndorsed} onChange={handleChange} type="date" />
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
                   <p className="mt-2 text-sm font-semibold text-slate-800">{user.displayName || user.email || 'Signed-in user'}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
-                  <div className="mt-2"><StatusBadge status={getStatus(form.EndorsedTo)} /></div>
+                  <div className="mt-2"><StatusBadge status={getStatus(form.Office)} /></div>
                 </div>
               </div>
 
