@@ -448,11 +448,6 @@ function AdminDashboard({
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Admin account</p>
-            <p className="mt-2 font-semibold text-white">{adminUser?.displayName || 'DocuTrack Administrator'}</p>
-            <p className="mt-1 text-sm text-slate-300">{adminUser?.email || ADMIN_EMAIL}</p>
-          </div>
         </div>
       </section>
 
@@ -947,7 +942,7 @@ function App() {
       return
     }
 
-    const requiredFields = ['DocummentCode', 'Subject', 'DateReceive', 'EndorsedTo', 'Name']
+    const requiredFields = ['DocummentCode', 'Subject', 'DateReceive']
     if (requiredFields.some((key) => !String(form[key]).trim())) {
       setFormError('Please complete all required fields.')
       return
@@ -1191,19 +1186,7 @@ function App() {
               <div className="flex items-center gap-2">
                 {canManage ? (
                   <>
-                    {isAdmin && activePage === 'documents' && (
-                      <button
-                        type="button"
-                        onClick={() => setActivePage('admin')}
-                        className="relative inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"
-                      >
-                        <ShieldCheck size={17} />
-                        <span className="hidden md:inline">Admin Page</span>
-                        {pendingApprovalCount > 0 && (
-                          <span className="grid min-w-5 place-items-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-bold text-white">{pendingApprovalCount}</span>
-                        )}
-                      </button>
-                    )}
+                    
                     {activePage === 'documents' && (
                       <button
                         onClick={openCreate}
@@ -1265,11 +1248,11 @@ function App() {
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                <StatCard icon={FileText} label="Total Documents" value={records.length} helper="All records" tone="blue" />
-                <StatCard icon={CheckCircle2} label="Endorsed" value={endorsedCount} helper="Endorsed To = BHROD-HRDD" tone="emerald" />
-                <StatCard icon={FileCheck2} label="Release" value={releaseCount} helper="Other Endorsed To values" tone="amber" />
-                <StatCard icon={CircleAlert} label="Pending" value={pendingDocumentCount} helper="Endorsed To is blank or NA" tone="violet" />
-                <StatCard icon={Inbox} label="Received This Month" value={receivedThisMonth} helper="Current month" tone="blue" />
+                <StatCard icon={FileText} label="Total Documents" value={records.length} helper="" tone="blue" />
+                <StatCard icon={CheckCircle2} label="Endorsed" value={endorsedCount} helper="" tone="emerald" />
+                <StatCard icon={FileCheck2} label="Release" value={releaseCount} helper="" tone="amber" />
+                <StatCard icon={CircleAlert} label="Pending" value={pendingDocumentCount} helper="" tone="violet" />
+                <StatCard icon={Inbox} label="Received This Month" value={receivedThisMonth} helper="" tone="blue" />
               </div>
             </section>
 
@@ -1527,7 +1510,7 @@ function App() {
                 <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
                 <div className="sm:col-span-2"><Field label="Subject" name="Subject" value={form.Subject} onChange={handleChange} placeholder="Enter document subject" required /></div>
                 <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
-                <Field label="Name" name="Name" value={form.Name} onChange={handleChange} placeholder="Enter receiver/person name" required />
+                <Field label="Name" name="Name" value={form.Name} onChange={handleChange} placeholder="Enter receiver/person name" />
                 <Field label="Release Date" name="Releasedate" value={form.Releasedate} onChange={handleChange} type="date" />
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
