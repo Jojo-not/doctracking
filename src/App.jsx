@@ -1515,12 +1515,10 @@ function App() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
                   <p className="mt-2 text-sm font-semibold text-slate-800">{user.displayName || user.email || 'Signed-in user'}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Saved automatically from the account that creates or last updates the document.</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
                   <div className="mt-2"><StatusBadge status={getStatus(form.EndorsedTo)} /></div>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">Blank or NA = Pending. BHROD-HRDD = Endorsed. Any other value = Release.</p>
                 </div>
               </div>
 
