@@ -1375,9 +1375,9 @@ function App() {
                           <div className="mt-1 line-clamp-2 text-sm text-slate-500">{record.Subject}</div>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateReceive)}</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.EncodedBy || '—'}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.Office || '—'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.EncodedBy || '—'}</td>    
                         <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.EndorsedTo || '—'}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.Office || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateEndorsed)}</td>
                         <td className="px-6 py-4"><StatusBadge status={record.Status} /></td>
                         <td className="px-6 py-4">
