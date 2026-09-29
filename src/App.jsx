@@ -579,6 +579,7 @@ function App() {
   const [formError, setFormError] = useState('')
   const [page, setPage] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('documents')
 
   const pageSize = 6
@@ -1084,20 +1085,26 @@ function App() {
     <div className="min-h-screen text-slate-900">
       <div className="flex min-h-screen">
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-slate-950 px-5 py-6 text-white transition duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-40 ${sidebarCollapsed ? 'w-24' : 'w-72'} transform bg-slate-950 px-3 py-6 text-white transition-all duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          } ${sidebarCollapsed ? 'lg:w-24' : 'lg:w-72'}`}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+            {!sidebarCollapsed ? (
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-500 shadow-lg shadow-blue-950/30">
+                  <FileText size={23} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-blue-300">Records System</p>
+                  <h1 className="text-lg font-bold tracking-tight">DocuTrack</h1>
+                </div>
+              </div>
+            ) : (
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-500 shadow-lg shadow-blue-950/30">
                 <FileText size={23} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-blue-300">Records System</p>
-                <h1 className="text-lg font-bold tracking-tight">DocuTrack</h1>
-              </div>
-            </div>
+            )}
             <button
               onClick={() => setSidebarOpen(false)}
               className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
@@ -1114,14 +1121,15 @@ function App() {
                 setActivePage('documents')
                 setSidebarOpen(false)
               }}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
+              className={`flex w-full items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
                 activePage === 'documents'
                   ? 'bg-white/10 text-white ring-1 ring-inset ring-white/10'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
+              title={sidebarCollapsed ? (canManage ? 'Document Records' : 'Guest Records') : undefined}
             >
               <LayoutDashboard size={18} />
-              {canManage ? 'Document Records' : 'Guest Records'}
+              {!sidebarCollapsed && (canManage ? 'Document Records' : 'Guest Records')}
             </button>
             {isAdmin && (
               <button
@@ -1130,33 +1138,39 @@ function App() {
                   setActivePage('admin')
                   setSidebarOpen(false)
                 }}
-                className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
+                className={`flex w-full items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
                   activePage === 'admin'
                     ? 'bg-white/10 text-white ring-1 ring-inset ring-white/10'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
+                title={sidebarCollapsed ? 'Admin Dashboard' : undefined}
               >
-                <span className="flex items-center gap-3"><ShieldCheck size={18} />Admin Dashboard</span>
-                {pendingApprovalCount > 0 && (
+                <span className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
+                  <ShieldCheck size={18} />
+                  {!sidebarCollapsed && 'Admin Dashboard'}
+                </span>
+                {!sidebarCollapsed && pendingApprovalCount > 0 && (
                   <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-slate-950">{pendingApprovalCount}</span>
                 )}
               </button>
             )}
-            <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-500">
+            <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} rounded-xl px-4 py-3 text-sm font-medium text-slate-500`}>
               <Archive size={18} />
-              Cloud Firestore
+              {!sidebarCollapsed && 'Cloud Firestore'}
             </div>
           </nav>
 
-          <div className="absolute bottom-6 left-5 right-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Access</p>
-            <p className="mt-2 text-sm font-semibold text-slate-200">
-              {isAdmin ? `${user.displayName || user.email} (Admin)` : canManage ? user.displayName || user.email : 'Guest / View only'}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-400">
-              {isAdmin ? 'Administrator access to documents and user management.' : canManage ? 'Approved CRUD access.' : 'Search and view records only.'}
-            </p>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="absolute bottom-6 left-5 right-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Access</p>
+              <p className="mt-2 text-sm font-semibold text-slate-200">
+                {isAdmin ? `${user.displayName || user.email} (Admin)` : canManage ? user.displayName || user.email : 'Guest / View only'}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                {isAdmin ? 'Administrator access to documents and user management.' : canManage ? 'Approved CRUD access.' : 'Search and view records only.'}
+              </p>
+            </div>
+          )}
         </aside>
 
         {sidebarOpen && (
@@ -1177,6 +1191,14 @@ function App() {
                   aria-label="Open navigation"
                 >
                   <Menu size={20} />
+                </button>
+                <button
+                  onClick={() => setSidebarCollapsed((value) => !value)}
+                  className="hidden rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm hover:bg-slate-50 lg:inline-flex"
+                  aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+                  title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                >
+                  {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                 </button>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-blue-600">
