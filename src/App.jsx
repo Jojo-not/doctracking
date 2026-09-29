@@ -52,6 +52,7 @@ import {
 const emptyForm = {
   DocummentCode: '',
   Subject: '',
+  Remarks: '',
   DateReceive: '',
   Office: '',
   EndorsedTo: '',
@@ -785,6 +786,7 @@ function App() {
         return [
           record.DocummentCode,
           record.Subject,
+          record.Remarks,
           record.DateReceive,
           record.EndorsedTo,
           record.Office,
@@ -912,6 +914,7 @@ function App() {
     setForm({
       DocummentCode: record.DocummentCode || '',
       Subject: record.Subject || '',
+      Remarks: record.Remarks || '',
       DateReceive: record.DateReceive || '',
       EndorsedTo: record.EndorsedTo || '',
       Office: record.Office || '',
@@ -1364,6 +1367,7 @@ function App() {
                       <th className="px-6 py-3.5">Office</th>
                       <th className="px-6 py-3.5">Date Endorsed</th>
                       <th className="px-6 py-3.5">Status</th>
+                      <th className="px-6 py-3.5">Remarks</th>
                       <th className="px-6 py-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -1380,6 +1384,7 @@ function App() {
                         <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.Office || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateEndorsed)}</td>
                         <td className="px-6 py-4"><StatusBadge status={record.Status} /></td>
+                        <td className="max-w-xs px-6 py-4 text-sm text-slate-600"><p className="line-clamp-2 break-words">{record.Remarks || '—'}</p></td>
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
                             <button onClick={() => openView(record)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600" title="View document"><Eye size={16} /></button>
@@ -1406,6 +1411,10 @@ function App() {
                         <p className="mt-1 text-sm leading-5 text-slate-500">{record.Subject}</p>
                       </div>
                       <StatusBadge status={record.Status} />
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Remarks</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{record.Remarks || '—'}</p>
                     </div>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <div className="flex items-start gap-2"><CalendarDays size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Received</p><p className="mt-0.5 text-slate-700">{formatDate(record.DateReceive)}</p></div></div>
@@ -1483,6 +1492,11 @@ function App() {
                 ))}
               </div>
 
+              <div className="mt-4 rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Remarks</p>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">{viewRecord.Remarks || '—'}</p>
+              </div>
+
               <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
                 {canManage && (
                   <button onClick={() => { const record = viewRecord; setViewRecord(null); openEdit(record) }} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Pencil size={16} />Edit Document</button>
@@ -1512,6 +1526,17 @@ function App() {
                 <Field label="Office" name="Office" value={form.Office} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
                 <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="Enter receiver/person name" />
                 <Field label="Date Endorsed" name="DateEndorsed" value={form.DateEndorsed} onChange={handleChange} type="date" />
+                <label className="block sm:col-span-2">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">Remarks</span>
+                  <textarea
+                    name="Remarks"
+                    value={form.Remarks}
+                    onChange={handleChange}
+                    placeholder="Add any additional notes"
+                    rows={3}
+                    className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                  />
+                </label>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
                   <p className="mt-2 text-sm font-semibold text-slate-800">{user.displayName || user.email || 'Signed-in user'}</p>
