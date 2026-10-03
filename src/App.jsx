@@ -218,7 +218,7 @@ function AuthScreen({ onGuest }) {
           Secure document monitoring
         </div>
         <h1 className="mt-8 text-5xl font-bold tracking-tight">
-          DocuTrack
+          BHROD-HRDD TechZone
           <span className="block text-blue-400">Document Monitoring System</span>
         </h1>
         <p className="mt-6 max-w-lg text-lg leading-8 text-slate-300">
@@ -245,7 +245,7 @@ function AuthScreen({ onGuest }) {
               <FileText size={24} />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">DocuTrack</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">BHROD-HRDD TZ Document Monitoring</p>
               <h2 className="text-xl font-bold text-slate-950">
                 {mode === 'login' ? 'Welcome back' : 'Request an account'}
               </h2>
@@ -373,7 +373,7 @@ function PendingApprovalScreen({ profile, user, onLogout, onGuest }) {
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           {rejected
-            ? 'Please contact the DocuTrack administrator if you believe your account should have access.'
+            ? 'Please contact the BHROD-HRDD TZ administrator if you believe your account should have access.'
             : 'An administrator must approve your account before you can add, edit, or delete documents. This page updates automatically after approval.'}
         </p>
 
@@ -445,7 +445,7 @@ function AdminDashboard({
             </div>
             <h3 className="mt-4 text-3xl font-bold tracking-tight">Admin Control Center</h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Review account registrations, control user access, and monitor the DocuTrack system.
+              Review account registrations, control user access, and monitor the BHROD-HRDD TZ system.
             </p>
           </div>
 
@@ -839,7 +839,7 @@ function App() {
     ])
 
     const worksheetData = [
-      ['DOCUTRACK DOCUMENT REPORT'],
+      ['BHROD-HRDD TZ DOCUMENT REPORT'],
       ['Date Field', dateFieldLabel],
       ['From Date', dateFrom || 'All'],
       ['To Date', dateTo || 'All'],
@@ -889,7 +889,7 @@ function App() {
         : `All_Dates_${today}`
     const fieldLabel = dateField === 'Releasedate' ? 'ReleaseDate' : 'DateReceive'
 
-    XLSX.writeFile(workbook, `DocuTrack_${fieldLabel}_${rangeLabel}.xlsx`)
+    XLSX.writeFile(workbook, `BHROD-HRDD TZ_${fieldLabel}_${rangeLabel}.xlsx`)
   }
 
   function clearDateFilter() {
@@ -1060,7 +1060,7 @@ function App() {
       <div className="grid min-h-screen place-items-center bg-slate-950 text-white">
         <div className="text-center">
           <LoaderCircle className="mx-auto animate-spin text-blue-400" size={34} />
-          <p className="mt-4 text-sm text-slate-300">Loading DocuTrack...</p>
+          <p className="mt-4 text-sm text-slate-300">Loading BHROD-HRDD TZ...</p>
         </div>
       </div>
     )
@@ -1096,8 +1096,8 @@ function App() {
                   <FileText size={23} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-blue-300">Records System</p>
-                  <h1 className="text-lg font-bold tracking-tight">DocuTrack</h1>
+                  <p className="text-sm font-semibold text-blue-300">Monitoring System</p>
+                  <h1 className="text-lg font-bold tracking-tight">BHROD-HRDD TZ</h1>
                 </div>
               </div>
             ) : (
@@ -1383,11 +1383,11 @@ function App() {
                   <thead className="bg-slate-50/80">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <th className="px-6 py-3.5">Document</th>
-                      <th className="px-6 py-3.5">Date Received</th>
-                      <th className="px-6 py-3.5">Encoded By</th>
+                      <th className="px-6 py-3.5">Received Date</th>
+                      <th className="px-6 py-3.5">Received By</th>
                       <th className="px-6 py-3.5">Endorsed To</th>
                       <th className="px-6 py-3.5">Office</th>
-                      <th className="px-6 py-3.5">Date Endorsed</th>
+                      <th className="px-6 py-3.5">Endorsed Date</th>
                       <th className="px-6 py-3.5">Status</th>
                       <th className="px-6 py-3.5">Remarks</th>
                       <th className="px-6 py-3.5 text-right">Actions</th>
