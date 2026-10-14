@@ -1543,11 +1543,11 @@ function App() {
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" required />
-                <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
+                <Field label="Received Date" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
                 <div className="sm:col-span-2"><Field label="Subject" name="Subject" value={form.Subject} onChange={handleChange} placeholder="Enter document subject" required /></div>
                 <Field label="Office" name="Office" value={form.Office} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
                 <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="Enter receiver/person name" />
-                <Field label="Date Endorsed" name="DateEndorsed" value={form.DateEndorsed} onChange={handleChange} type="date" />
+                <Field label="Endorsed Date" name="DateEndorsed" value={form.DateEndorsed} onChange={handleChange} type="date" />
                 <label className="block sm:col-span-2">
                   <span className="mb-2 block text-sm font-semibold text-slate-700">Remarks</span>
                   <textarea
@@ -1560,7 +1560,7 @@ function App() {
                   />
                 </label>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Received By</p>
                   <p className="mt-2 text-sm font-semibold text-slate-800">{user.displayName || user.email || 'Signed-in user'}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
