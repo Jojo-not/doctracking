@@ -1585,7 +1585,6 @@ function App() {
                 <SelectField label="Mode of Receiving" name="ModeOfReceiving" value={form.ModeOfReceiving} onChange={handleChange} options={['Hard Copy', 'Email']} placeholder="Select mode of receiving" required />
                 <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" required />
                 <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
-                <Field label="Sending Office" name="SendingOffice" value={form.SendingOffice} onChange={handleChange} placeholder="Enter sending office" required />
                 <div className="sm:col-span-2"><Field label="Subject" name="Subject" value={form.Subject} onChange={handleChange} placeholder="Enter document subject" required /></div>
                 <SelectField label="HRDD Program" name="HRDDProgram" value={form.HRDDProgram} onChange={handleChange} options={['RSP', 'PMES', 'CPU', 'NASH', 'L&D', 'CompDev', 'Others', 'To be assigned']} placeholder="Select HRDD program" required />
                 <SelectField label="Document Processing Status" name="DocumentProcessingStatus" value={form.DocumentProcessingStatus} onChange={handleChange} options={['Received', 'Forwarded to HRDD focal', 'For File', 'Resolved', 'Pending', 'Release']} placeholder="Select processing status" required />
@@ -1593,7 +1592,7 @@ function App() {
                 <SelectField label="Type of Document" name="TypeOfDocument" value={form.TypeOfDocument} onChange={handleChange} options={['Simple', 'Complex', 'Highly Technical']} placeholder="Select type of document" required />
                 <Field label="Office" name="Office" value={form.Office} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
                 <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="Enter receiver/person name" />
-                <Field label="Date Endorsed" name="DateEndorsed" value={form.DateEndorsed} onChange={handleChange} type="date" />
+                <Field label="Endorsed Date" name="DateEndorsed" value={form.DateEndorsed} onChange={handleChange} type="date" />
                 <label className="block sm:col-span-2">
                   <span className="mb-2 block text-sm font-semibold text-slate-700">Remarks</span>
                   <textarea
@@ -1605,6 +1604,14 @@ function App() {
                     className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />
                 </label>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-800">{user.displayName || user.email || 'Signed-in user'}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
+                  <div className="mt-2"><StatusBadge status={getStatus(form.Office)} /></div>
+                </div>
               </div>
 
               <div className="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
