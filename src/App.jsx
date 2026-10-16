@@ -50,24 +50,23 @@ import {
 } from 'lucide-react'
 
 const emptyForm = {
+  ReceivingLocation: '',
+  ModeOfReceiving: '',
   DocummentCode: '',
   Subject: '',
+  DocumentProcessingStatus: '',
+  DocumentType: '',
+  TypeOfDocument: '',
+  HRDDProgram: '',
   Remarks: '',
   DateReceive: '',
+  SendingOffice: '',
   Office: '',
   EndorsedTo: '',
   DateEndorsed: '',
 }
 
 const ADMIN_EMAIL = 'jowen.diez@deped.gov.ph'
-
-function getStatus(Office) {
-  const value = String(Office || '').trim().toUpperCase()
-
-  if (!value || value === 'NA') return 'Pending'
-  if (value === 'BHROD-HRDD') return 'Endorsed'
-  return 'Release'
-}
 
 function formatDate(value) {
   if (!value) return '—'
@@ -119,6 +118,29 @@ function Field({ label, name, value, onChange, type = 'text', placeholder, requi
   )
 }
 
+function SelectField({ label, name, value, onChange, options, placeholder, required = false }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700">
+        {label}
+        {required && <span className="ml-1 text-rose-500">*</span>}
+      </span>
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function StatCard({ icon: Icon, label, value, helper, tone = 'blue' }) {
   const tones = {
     blue: 'bg-blue-50 text-blue-600 ring-blue-100',
@@ -140,24 +162,6 @@ function StatCard({ icon: Icon, label, value, helper, tone = 'blue' }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function StatusBadge({ status }) {
-  const badgeClass =
-    status === 'Endorsed'
-      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-      : status === 'Pending'
-        ? 'bg-amber-50 text-amber-700 ring-amber-200'
-        : 'bg-blue-50 text-blue-700 ring-blue-200'
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${badgeClass}`}
-    >
-      {status === 'Pending' ? <CircleAlert size={13} /> : <CheckCircle2 size={13} />}
-      {status}
-    </span>
   )
 }
 
@@ -567,7 +571,6 @@ function App() {
   const [backendError, setBackendError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
   const [dateField, setDateField] = useState('DateReceive')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -745,7 +748,6 @@ function App() {
             Office,
             EndorsedTo,
             EncodedBy,
-            Status: getStatus(Office),
           }
         })
 
@@ -768,12 +770,6 @@ function App() {
 
     return records
       .filter((record) => {
-        if (statusFilter === 'endorsed') return record.Status === 'Endorsed'
-        if (statusFilter === 'release') return record.Status === 'Release'
-        if (statusFilter === 'pending') return record.Status === 'Pending'
-        return true
-      })
-      .filter((record) => {
         const selectedDate = dateField === 'Releasedate' ? record.Releasedate : record.DateReceive
 
         if (!dateFrom && !dateTo) return true
@@ -791,13 +787,19 @@ function App() {
           record.DateReceive,
           record.EndorsedTo,
           record.Office,
+          record.SendingOffice,
           record.DateEndorsed,
-          record.Status,
           record.EncodedBy,
+          record.ReceivingLocation,
+          record.ModeOfReceiving,
+          record.DocumentProcessingStatus,
+          record.DocumentType,
+          record.TypeOfDocument,
+          record.HRDDProgram,
         ].some((value) => String(value || '').toLowerCase().includes(query))
       })
       .sort((a, b) => (b.DateReceive || '').localeCompare(a.DateReceive || ''))
-  }, [records, search, statusFilter, dateField, dateFrom, dateTo])
+  }, [records, search, dateField, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize))
   const currentPage = Math.min(page, totalPages)
@@ -805,11 +807,8 @@ function App() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, statusFilter, dateField, dateFrom, dateTo])
+  }, [search, dateField, dateFrom, dateTo])
 
-  const endorsedCount = records.filter((record) => record.Status === 'Endorsed').length
-  const releaseCount = records.filter((record) => record.Status === 'Release').length
-  const pendingDocumentCount = records.filter((record) => record.Status === 'Pending').length
   const receivedThisMonth = records.filter((record) => {
     if (!record.DateReceive) return false
     const date = new Date(`${record.DateReceive}T00:00:00`)
@@ -821,21 +820,22 @@ function App() {
     if (filteredRecords.length === 0) return
 
     const dateFieldLabel = dateField === 'Releasedate' ? 'Release Date' : 'Date Received'
-    const statusLabel =
-      statusFilter === 'all'
-        ? 'All Statuses'
-        : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)
-
     const reportRows = filteredRecords.map((record, index) => [
       index + 1,
       record.DocummentCode || '',
       record.Subject || '',
+      record.ReceivingLocation || '',
+      record.ModeOfReceiving || '',
       record.DateReceive || '',
+      record.EncodedBy || '',
+      record.SendingOffice || '',
+      record.DocumentProcessingStatus || '',
+      record.DocumentType || '',
+      record.TypeOfDocument || '',
+      record.HRDDProgram || '',
       record.EndorsedTo || '',
       record.Office || '',
       record.DateEndorsed || '',
-      record.Status || getStatus(record.Office),
-      record.EncodedBy || '',
     ])
 
     const worksheetData = [
@@ -843,7 +843,6 @@ function App() {
       ['Date Field', dateFieldLabel],
       ['From Date', dateFrom || 'All'],
       ['To Date', dateTo || 'All'],
-      ['Status', statusLabel],
       ['Search', search.trim() || 'All'],
       ['Total Records', filteredRecords.length],
       [],
@@ -851,23 +850,35 @@ function App() {
         'No.',
         'Document Code',
         'Subject',
+        'Receiving Location',
+        'Mode of Receiving',
         'Date Received',
+        'Received By',
+        'Sending Office',
+        'Document Processing Status',
+        'Document Type',
+        'Type of Document',
+        'HRDD Program',
         'Endorsed To',
         'Office',
         'Date Endorsed',
-        'Status',
-        'Encoded By',
       ],
       ...reportRows,
     ]
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
-    worksheet['!merges'] = [XLSX.utils.decode_range('A1:I1')]
+    worksheet['!merges'] = [XLSX.utils.decode_range('A1:O1')]
     worksheet['!cols'] = [
       { wch: 6 },
       { wch: 20 },
       { wch: 42 },
+      { wch: 20 },
+      { wch: 20 },
       { wch: 16 },
+      { wch: 30 },
+      { wch: 32 },
+      { wch: 22 },
+      { wch: 20 },
       { wch: 24 },
       { wch: 24 },
       { wch: 16 },
@@ -876,7 +887,7 @@ function App() {
     ]
 
     if (reportRows.length > 0) {
-      worksheet['!autofilter'] = { ref: `A9:I${9 + reportRows.length}` }
+      worksheet['!autofilter'] = { ref: `A8:O${8 + reportRows.length}` }
     }
 
     const workbook = XLSX.utils.book_new()
@@ -913,10 +924,17 @@ function App() {
     if (!canManage) return
     setEditingId(record.id)
     setForm({
+      ReceivingLocation: record.ReceivingLocation || '',
+      ModeOfReceiving: record.ModeOfReceiving || '',
       DocummentCode: record.DocummentCode || '',
       Subject: record.Subject || '',
+      DocumentProcessingStatus: record.DocumentProcessingStatus || '',
+      DocumentType: record.DocumentType || '',
+      TypeOfDocument: record.TypeOfDocument || '',
+      HRDDProgram: record.HRDDProgram || '',
       Remarks: record.Remarks || '',
       DateReceive: record.DateReceive || '',
+      SendingOffice: record.SendingOffice || '',
       EndorsedTo: record.EndorsedTo || '',
       Office: record.Office || '',
       DateEndorsed: record.DateEndorsed || '',
@@ -946,7 +964,18 @@ function App() {
       return
     }
 
-    const requiredFields = ['DocummentCode', 'Subject', 'DateReceive']
+    const requiredFields = [
+      'ReceivingLocation',
+      'ModeOfReceiving',
+      'DocummentCode',
+      'Subject',
+      'DateReceive',
+      'SendingOffice',
+      'HRDDProgram',
+      'DocumentProcessingStatus',
+      'DocumentType',
+      'TypeOfDocument',
+    ]
     if (requiredFields.some((key) => !String(form[key]).trim())) {
       setFormError('Please complete all required fields.')
       return
@@ -977,7 +1006,6 @@ function App() {
     const encoderName = user.displayName?.trim() || user.email || user.uid
     const payload = {
       ...form,
-      Status: getStatus(form.Office),
       updatedAt: serverTimestamp(),
       updatedBy: encoderName,
       updatedByUid: user.uid,
@@ -1269,14 +1297,11 @@ function App() {
                 <section>
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-slate-950">Overview</h3>
-                <p className="mt-1 text-sm text-slate-500">Track incoming documents and endorsement/release status.</p>
+                <p className="mt-1 text-sm text-slate-500">Track incoming documents and their processing details.</p>
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <StatCard icon={FileText} label="Total Documents" value={records.length} helper="" tone="blue" />
-                <StatCard icon={CheckCircle2} label="Endorsed" value={endorsedCount} helper="" tone="emerald" />
-                <StatCard icon={FileCheck2} label="Release" value={releaseCount} helper="" tone="amber" />
-                <StatCard icon={CircleAlert} label="Pending" value={pendingDocumentCount} helper="" tone="violet" />
                 <StatCard icon={Inbox} label="Received This Month" value={receivedThisMonth} helper="" tone="blue" />
               </div>
             </section>
@@ -1299,16 +1324,6 @@ function App() {
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
                       />
                     </div>
-                    <select
-                      value={statusFilter}
-                      onChange={(event) => setStatusFilter(event.target.value)}
-                      className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                    >
-                      <option value="all">All Status</option>
-                      <option value="endorsed">Endorsed</option>
-                      <option value="release">Release</option>
-                      <option value="pending">Pending</option>
-                    </select>
                     <button
                       type="button"
                       onClick={downloadExcel}
@@ -1373,7 +1388,7 @@ function App() {
                   </button>
 
                   <p className="text-xs leading-5 text-slate-500 lg:ml-auto lg:max-w-xs lg:text-right">
-                    Excel export uses the current search, status, and date filters.
+                    Excel export uses the current search and date filters.
                   </p>
                 </div>
               </div>
@@ -1383,12 +1398,18 @@ function App() {
                   <thead className="bg-slate-50/80">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <th className="px-6 py-3.5">Document</th>
+                      <th className="px-6 py-3.5">Receiving Location</th>
+                      <th className="px-6 py-3.5">Mode of Receiving</th>
                       <th className="px-6 py-3.5">Received Date</th>
                       <th className="px-6 py-3.5">Received By</th>
+                      <th className="px-6 py-3.5">Sending Office</th>
+                      <th className="px-6 py-3.5">Processing Status</th>
+                      <th className="px-6 py-3.5">Document Type</th>
+                      <th className="px-6 py-3.5">Type of Document</th>
+                      <th className="px-6 py-3.5">HRDD Program</th>
                       <th className="px-6 py-3.5">Endorsed To</th>
                       <th className="px-6 py-3.5">Office</th>
                       <th className="px-6 py-3.5">Endorsed Date</th>
-                      <th className="px-6 py-3.5">Status</th>
                       <th className="px-6 py-3.5">Remarks</th>
                       <th className="px-6 py-3.5 text-right">Actions</th>
                     </tr>
@@ -1400,12 +1421,18 @@ function App() {
                           <div className="font-semibold text-slate-950">{record.DocummentCode}</div>
                           <div className="mt-1 line-clamp-2 text-sm text-slate-500">{record.Subject}</div>
                         </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.ReceivingLocation || '—'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.ModeOfReceiving || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateReceive)}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.EncodedBy || '—'}</td>    
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.SendingOffice || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{record.DocumentProcessingStatus || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{record.DocumentType || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{record.TypeOfDocument || '—'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.HRDDProgram || '—'}</td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.EndorsedTo || '—'}</td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-700">{record.Office || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateEndorsed)}</td>
-                        <td className="px-6 py-4"><StatusBadge status={record.Status} /></td>
                         <td className="max-w-xs px-6 py-4 text-sm text-slate-600"><p className="line-clamp-2 break-words">{record.Remarks || '—'}</p></td>
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
@@ -1432,18 +1459,24 @@ function App() {
                         <p className="truncate font-bold text-slate-950">{record.DocummentCode}</p>
                         <p className="mt-1 text-sm leading-5 text-slate-500">{record.Subject}</p>
                       </div>
-                      <StatusBadge status={record.Status} />
                     </div>
                     <div className="mt-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Remarks</p>
                       <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{record.Remarks || '—'}</p>
                     </div>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Receiving Location</p><p className="mt-0.5 text-slate-700">{record.ReceivingLocation || '—'}</p></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mode of Receiving</p><p className="mt-0.5 text-slate-700">{record.ModeOfReceiving || '—'}</p></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Document Processing Status</p><p className="mt-0.5 text-slate-700">{record.DocumentProcessingStatus || '—'}</p></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Document Type</p><p className="mt-0.5 text-slate-700">{record.DocumentType || '—'}</p></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Type of Document</p><p className="mt-0.5 text-slate-700">{record.TypeOfDocument || '—'}</p></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">HRDD Program</p><p className="mt-0.5 text-slate-700">{record.HRDDProgram || '—'}</p></div>
                       <div className="flex items-start gap-2"><CalendarDays size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Received</p><p className="mt-0.5 text-slate-700">{formatDate(record.DateReceive)}</p></div></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Received By</p><p className="mt-0.5 text-slate-700">{record.EncodedBy || '—'}</p></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sending Office</p><p className="mt-0.5 text-slate-700">{record.SendingOffice || '—'}</p></div>
                       <div className="flex items-start gap-2"><Archive size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Office</p><p className="mt-0.5 text-slate-700">{record.Office || '—'}</p></div></div>
                       <div className="flex items-start gap-2"><UserRound size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Endorsed To</p><p className="mt-0.5 text-slate-700">{record.EndorsedTo || '—'}</p></div></div>
                       <div className="flex items-start gap-2"><FileCheck2 size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Date Endorsed</p><p className="mt-0.5 text-slate-700">{formatDate(record.DateEndorsed)}</p></div></div>
-                      <div className="flex items-start gap-2"><Users size={16} className="mt-0.5 text-slate-400" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p><p className="mt-0.5 text-slate-700">{record.EncodedBy || '—'}</p></div></div>
                     </div>
                     <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
                       <button onClick={() => openView(record)} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"><Eye size={15} />View</button>
@@ -1495,13 +1528,19 @@ function App() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Subject</p>
                   <p className="mt-2 text-lg font-semibold leading-7 text-slate-950">{viewRecord.Subject || '—'}</p>
                 </div>
-                <StatusBadge status={viewRecord.Status || getStatus(viewRecord.Office)} />
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {[
                   ['Document Code', viewRecord.DocummentCode || '—'],
+                  ['Receiving Location', viewRecord.ReceivingLocation || '—'],
+                  ['Mode of Receiving', viewRecord.ModeOfReceiving || '—'],
                   ['Date Received', formatDate(viewRecord.DateReceive)],
+                  ['Sending Office', viewRecord.SendingOffice || '—'],
+                  ['Document Processing Status', viewRecord.DocumentProcessingStatus || '—'],
+                  ['Document Type', viewRecord.DocumentType || '—'],
+                  ['Type of Document', viewRecord.TypeOfDocument || '—'],
+                  ['HRDD Program', viewRecord.HRDDProgram || '—'],
                   ['Office', viewRecord.Office || '—'],
                   ['Endorsed To', viewRecord.EndorsedTo || '—'],
                   ['Date Endorsed', formatDate(viewRecord.DateEndorsed)],
@@ -1542,9 +1581,16 @@ function App() {
               {formError && <div className="mb-5 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"><CircleAlert size={18} className="mt-0.5 shrink-0" /><span>{formError}</span></div>}
 
               <div className="grid gap-5 sm:grid-cols-2">
+                <SelectField label="Receiving Location" name="ReceivingLocation" value={form.ReceivingLocation} onChange={handleChange} options={['TZ', 'CO']} placeholder="Select receiving location" required />
+                <SelectField label="Mode of Receiving" name="ModeOfReceiving" value={form.ModeOfReceiving} onChange={handleChange} options={['Hard Copy', 'Email']} placeholder="Select mode of receiving" required />
                 <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" required />
                 <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
+                <Field label="Sending Office" name="SendingOffice" value={form.SendingOffice} onChange={handleChange} placeholder="Enter sending office" required />
                 <div className="sm:col-span-2"><Field label="Subject" name="Subject" value={form.Subject} onChange={handleChange} placeholder="Enter document subject" required /></div>
+                <SelectField label="HRDD Program" name="HRDDProgram" value={form.HRDDProgram} onChange={handleChange} options={['RSP', 'PMES', 'CPU', 'NASH', 'L&D', 'CompDev', 'Others', 'To be assigned']} placeholder="Select HRDD program" required />
+                <SelectField label="Document Processing Status" name="DocumentProcessingStatus" value={form.DocumentProcessingStatus} onChange={handleChange} options={['Received', 'Forwarded to HRDD focal', 'For File', 'Resolved', 'Pending', 'Release']} placeholder="Select processing status" required />
+                <SelectField label="Document Type" name="DocumentType" value={form.DocumentType} onChange={handleChange} options={['Inquiry/Complaint/Request', 'For Comprehensive Review', 'Invitation', 'For Comments/Inputs']} placeholder="Select document type" required />
+                <SelectField label="Type of Document" name="TypeOfDocument" value={form.TypeOfDocument} onChange={handleChange} options={['Simple', 'Complex', 'Highly Technical']} placeholder="Select type of document" required />
                 <Field label="Office" name="Office" value={form.Office} onChange={handleChange} placeholder="e.g. BHROD-HRDD, NA, or leave blank" />
                 <Field label="Endorsed To" name="EndorsedTo" value={form.EndorsedTo} onChange={handleChange} placeholder="Enter receiver/person name" />
                 <Field label="Date Endorsed" name="DateEndorsed" value={form.DateEndorsed} onChange={handleChange} type="date" />
@@ -1559,14 +1605,6 @@ function App() {
                     className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />
                 </label>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Encoded By</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-800">{user.displayName || user.email || 'Signed-in user'}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</p>
-                  <div className="mt-2"><StatusBadge status={getStatus(form.Office)} /></div>
-                </div>
               </div>
 
               <div className="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
