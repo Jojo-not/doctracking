@@ -53,6 +53,7 @@ const emptyForm = {
   ReceivingLocation: '',
   ModeOfReceiving: '',
   DocummentCode: '',
+  HRDDDocumentCode: '',
   Subject: '',
   DocumentProcessingStatus: '',
   DocumentType: '',
@@ -782,6 +783,7 @@ function App() {
         if (!query) return true
         return [
           record.DocummentCode,
+          record.HRDDDocumentCode,
           record.Subject,
           record.Remarks,
           record.DateReceive,
@@ -823,6 +825,7 @@ function App() {
     const reportRows = filteredRecords.map((record, index) => [
       index + 1,
       record.DocummentCode || '',
+      record.HRDDDocumentCode || '',
       record.Subject || '',
       record.ReceivingLocation || '',
       record.ModeOfReceiving || '',
@@ -849,6 +852,7 @@ function App() {
       [
         'No.',
         'Document Code',
+        'HRDD Document Code',
         'Subject',
         'Receiving Location',
         'Mode of Receiving',
@@ -867,10 +871,11 @@ function App() {
     ]
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
-    worksheet['!merges'] = [XLSX.utils.decode_range('A1:O1')]
+    worksheet['!merges'] = [XLSX.utils.decode_range('A1:P1')]
     worksheet['!cols'] = [
       { wch: 6 },
       { wch: 20 },
+      { wch: 24 },
       { wch: 42 },
       { wch: 20 },
       { wch: 20 },
@@ -887,7 +892,7 @@ function App() {
     ]
 
     if (reportRows.length > 0) {
-      worksheet['!autofilter'] = { ref: `A8:O${8 + reportRows.length}` }
+      worksheet['!autofilter'] = { ref: `A8:P${8 + reportRows.length}` }
     }
 
     const workbook = XLSX.utils.book_new()
@@ -927,6 +932,7 @@ function App() {
       ReceivingLocation: record.ReceivingLocation || '',
       ModeOfReceiving: record.ModeOfReceiving || '',
       DocummentCode: record.DocummentCode || '',
+      HRDDDocumentCode: record.HRDDDocumentCode || '',
       Subject: record.Subject || '',
       DocumentProcessingStatus: record.DocumentProcessingStatus || '',
       DocumentType: record.DocumentType || '',
@@ -967,7 +973,6 @@ function App() {
     const requiredFields = [
       'ReceivingLocation',
       'ModeOfReceiving',
-      'DocummentCode',
       'Subject',
       'DateReceive',
       'SendingOffice',
@@ -981,14 +986,27 @@ function App() {
       return
     }
 
-    const duplicateCode = records.some(
+    const documentCode = form.DocummentCode.trim().toLowerCase()
+    const duplicateCode = documentCode && records.some(
       (record) =>
-        String(record.DocummentCode || '').trim().toLowerCase() === form.DocummentCode.trim().toLowerCase() &&
+        String(record.DocummentCode || '').trim().toLowerCase() === documentCode &&
         record.id !== editingId,
     )
 
     if (duplicateCode) {
       setFormError('Document Code must be unique.')
+      return
+    }
+
+    const hrddDocumentCode = form.HRDDDocumentCode.trim().toLowerCase()
+    const duplicateHRDDDocumentCode = hrddDocumentCode && records.some(
+      (record) =>
+        String(record.HRDDDocumentCode || '').trim().toLowerCase() === hrddDocumentCode &&
+        record.id !== editingId,
+    )
+
+    if (duplicateHRDDDocumentCode) {
+      setFormError('HRDD Document Code must be unique.')
       return
     }
 
@@ -1398,6 +1416,7 @@ function App() {
                   <thead className="bg-slate-50/80">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <th className="px-6 py-3.5">Document</th>
+                      <th className="px-6 py-3.5">HRDD Document Code</th>
                       <th className="px-6 py-3.5">Receiving Location</th>
                       <th className="px-6 py-3.5">Mode of Receiving</th>
                       <th className="px-6 py-3.5">Received Date</th>
@@ -1418,9 +1437,10 @@ function App() {
                     {visibleRecords.map((record) => (
                       <tr key={record.id} className="transition hover:bg-slate-50/70">
                         <td className="max-w-sm px-6 py-4">
-                          <div className="font-semibold text-slate-950">{record.DocummentCode}</div>
+                          <div className="font-semibold text-slate-950">{record.DocummentCode || '—'}</div>
                           <div className="mt-1 line-clamp-2 text-sm text-slate-500">{record.Subject}</div>
                         </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.HRDDDocumentCode || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.ReceivingLocation || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.ModeOfReceiving || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateReceive)}</td>
@@ -1456,7 +1476,8 @@ function App() {
                   <article key={record.id} className="p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-bold text-slate-950">{record.DocummentCode}</p>
+                        <p className="truncate font-bold text-slate-950">{record.DocummentCode || '—'}</p>
+                        <p className="mt-1 truncate text-sm text-slate-500">HRDD Document Code: {record.HRDDDocumentCode || '—'}</p>
                         <p className="mt-1 text-sm leading-5 text-slate-500">{record.Subject}</p>
                       </div>
                     </div>
@@ -1517,7 +1538,7 @@ function App() {
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur-xl">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-violet-600">Document details</p>
-                <h3 className="mt-1 text-xl font-bold text-slate-950">{viewRecord.DocummentCode || 'Document'}</h3>
+                <h3 className="mt-1 text-xl font-bold text-slate-950">{viewRecord.DocummentCode || viewRecord.HRDDDocumentCode || 'Document'}</h3>
               </div>
               <button onClick={() => setViewRecord(null)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close document view"><X size={20} /></button>
             </div>
@@ -1533,6 +1554,7 @@ function App() {
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {[
                   ['Document Code', viewRecord.DocummentCode || '—'],
+                  ['HRDD Document Code', viewRecord.HRDDDocumentCode || '—'],
                   ['Receiving Location', viewRecord.ReceivingLocation || '—'],
                   ['Mode of Receiving', viewRecord.ModeOfReceiving || '—'],
                   ['Date Received', formatDate(viewRecord.DateReceive)],
@@ -1583,7 +1605,8 @@ function App() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <SelectField label="Receiving Location" name="ReceivingLocation" value={form.ReceivingLocation} onChange={handleChange} options={['TZ', 'CO']} placeholder="Select receiving location" required />
                 <SelectField label="Mode of Receiving" name="ModeOfReceiving" value={form.ModeOfReceiving} onChange={handleChange} options={['Hard Copy', 'Email']} placeholder="Select mode of receiving" required />
-                <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" required />
+                <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" />
+                <Field label="HRDD Document Code" name="HRDDDocumentCode" value={form.HRDDDocumentCode} onChange={handleChange} placeholder="Enter HRDD document code" />
                 <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
                 <Field label="Sending Office" name="SendingOffice" value={form.SendingOffice} onChange={handleChange} placeholder="Enter sending office" required />
                 <div className="sm:col-span-2"><Field label="Subject" name="Subject" value={form.Subject} onChange={handleChange} placeholder="Enter document subject" required /></div>
