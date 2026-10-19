@@ -1621,7 +1621,7 @@ function App() {
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl shadow-slate-950/20">
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-rose-600"><Trash2 size={22} /></div>
             <h3 className="mt-5 text-xl font-bold text-slate-950">Delete this document?</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-500">This permanently removes the record from Firestore and cannot be undone.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">This permanently removes the record and cannot be undone.</p>
             <div className="mt-6 flex justify-end gap-3"><button onClick={() => setDeleteId(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button><button onClick={confirmDelete} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-600/20 hover:bg-rose-700">Delete Record</button></div>
           </div>
         </div>
