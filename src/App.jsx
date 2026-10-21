@@ -51,7 +51,6 @@ import {
 
 const emptyForm = {
   ReceivingLocation: '',
-  ModeOfReceiving: '',
   DocummentCode: '',
   HRDDDocumentCode: '',
   Subject: '',
@@ -793,7 +792,6 @@ function App() {
           record.DateEndorsed,
           record.EncodedBy,
           record.ReceivingLocation,
-          record.ModeOfReceiving,
           record.DocumentProcessingStatus,
           record.DocumentType,
           record.TypeOfDocument,
@@ -828,7 +826,6 @@ function App() {
       record.HRDDDocumentCode || '',
       record.Subject || '',
       record.ReceivingLocation || '',
-      record.ModeOfReceiving || '',
       record.DateReceive || '',
       record.EncodedBy || '',
       record.SendingOffice || '',
@@ -854,8 +851,7 @@ function App() {
         'Document Code',
         'HRDD Document Code',
         'Subject',
-        'Receiving Location',
-        'Mode of Receiving',
+        'Receiving Location / Channel',
         'Date Received',
         'Received By',
         'Sending Office',
@@ -871,13 +867,12 @@ function App() {
     ]
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
-    worksheet['!merges'] = [XLSX.utils.decode_range('A1:P1')]
+    worksheet['!merges'] = [XLSX.utils.decode_range('A1:O1')]
     worksheet['!cols'] = [
       { wch: 6 },
       { wch: 20 },
       { wch: 24 },
       { wch: 42 },
-      { wch: 20 },
       { wch: 20 },
       { wch: 16 },
       { wch: 30 },
@@ -892,7 +887,7 @@ function App() {
     ]
 
     if (reportRows.length > 0) {
-      worksheet['!autofilter'] = { ref: `A8:P${8 + reportRows.length}` }
+      worksheet['!autofilter'] = { ref: `A8:O${8 + reportRows.length}` }
     }
 
     const workbook = XLSX.utils.book_new()
@@ -930,7 +925,6 @@ function App() {
     setEditingId(record.id)
     setForm({
       ReceivingLocation: record.ReceivingLocation || '',
-      ModeOfReceiving: record.ModeOfReceiving || '',
       DocummentCode: record.DocummentCode || '',
       HRDDDocumentCode: record.HRDDDocumentCode || '',
       Subject: record.Subject || '',
@@ -972,7 +966,6 @@ function App() {
 
     const requiredFields = [
       'ReceivingLocation',
-      'ModeOfReceiving',
       'Subject',
       'DateReceive',
       'SendingOffice',
@@ -1417,8 +1410,7 @@ function App() {
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <th className="px-6 py-3.5">Document</th>
                       <th className="px-6 py-3.5">HRDD Document Code</th>
-                      <th className="px-6 py-3.5">Receiving Location</th>
-                      <th className="px-6 py-3.5">Mode of Receiving</th>
+                      <th className="px-6 py-3.5">Receiving Location / Channel</th>
                       <th className="px-6 py-3.5">Received Date</th>
                       <th className="px-6 py-3.5">Received By</th>
                       <th className="px-6 py-3.5">Sending Office</th>
@@ -1442,7 +1434,6 @@ function App() {
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.HRDDDocumentCode || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.ReceivingLocation || '—'}</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.ModeOfReceiving || '—'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatDate(record.DateReceive)}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.EncodedBy || '—'}</td>    
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.SendingOffice || '—'}</td>
@@ -1486,8 +1477,7 @@ function App() {
                       <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{record.Remarks || '—'}</p>
                     </div>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Receiving Location</p><p className="mt-0.5 text-slate-700">{record.ReceivingLocation || '—'}</p></div>
-                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mode of Receiving</p><p className="mt-0.5 text-slate-700">{record.ModeOfReceiving || '—'}</p></div>
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Receiving Location / Channel</p><p className="mt-0.5 text-slate-700">{record.ReceivingLocation || '—'}</p></div>
                       <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Document Processing Status</p><p className="mt-0.5 text-slate-700">{record.DocumentProcessingStatus || '—'}</p></div>
                       <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Document Type</p><p className="mt-0.5 text-slate-700">{record.DocumentType || '—'}</p></div>
                       <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Type of Document</p><p className="mt-0.5 text-slate-700">{record.TypeOfDocument || '—'}</p></div>
@@ -1555,8 +1545,7 @@ function App() {
                 {[
                   ['Document Code', viewRecord.DocummentCode || '—'],
                   ['HRDD Document Code', viewRecord.HRDDDocumentCode || '—'],
-                  ['Receiving Location', viewRecord.ReceivingLocation || '—'],
-                  ['Mode of Receiving', viewRecord.ModeOfReceiving || '—'],
+                  ['Receiving Location / Channel', viewRecord.ReceivingLocation || '—'],
                   ['Date Received', formatDate(viewRecord.DateReceive)],
                   ['Sending Office', viewRecord.SendingOffice || '—'],
                   ['Document Processing Status', viewRecord.DocumentProcessingStatus || '—'],
@@ -1603,8 +1592,7 @@ function App() {
               {formError && <div className="mb-5 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"><CircleAlert size={18} className="mt-0.5 shrink-0" /><span>{formError}</span></div>}
 
               <div className="grid gap-5 sm:grid-cols-2">
-                <SelectField label="Receiving Location" name="ReceivingLocation" value={form.ReceivingLocation} onChange={handleChange} options={['TZ', 'CO']} placeholder="Select receiving location" required />
-                <SelectField label="Mode of Receiving" name="ModeOfReceiving" value={form.ModeOfReceiving} onChange={handleChange} options={['Hard Copy', 'Email']} placeholder="Select mode of receiving" required />
+                <SelectField label="Receiving Location / Channel" name="ReceivingLocation" value={form.ReceivingLocation} onChange={handleChange} options={['TZ', 'CO', 'Email', 'Walk-in']} placeholder="Select receiving location or channel" required />
                 <Field label="Document Code" name="DocummentCode" value={form.DocummentCode} onChange={handleChange} placeholder="e.g. DOC-2026-004" />
                 <Field label="HRDD Document Code" name="HRDDDocumentCode" value={form.HRDDDocumentCode} onChange={handleChange} placeholder="Enter HRDD document code" />
                 <Field label="Date Received" name="DateReceive" value={form.DateReceive} onChange={handleChange} type="date" required />
